@@ -1,0 +1,44 @@
+/* Placeholder styles. The visual system is defined in docs/ui-ux-standards.md (S1-002). */
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1c2430;
+  --color-muted: #5b6676;
+  --color-border: #dde3ea;
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #141a22;
+    --color-text: #e6ebf1;
+    --color-muted: #9aa6b5;
+    --color-border: #2a3441;
+    color-scheme: dark;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.shell-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wordmark {
+  font-weight: 700;
+}
+
+.shell-main {
+  max-width: 48rem;
+  padding: 2rem 1.5rem;
+}
+
+.shell-main p {
+  color: var(--color-muted);
+}

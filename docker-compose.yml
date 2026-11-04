@@ -1,0 +1,20 @@
+# Local development database only. These credentials are not secrets and they exist only on each developer's machine. Never reuse them anywhere else.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: reviewlens
+      POSTGRES_PASSWORD: reviewlens
+      POSTGRES_DB: reviewlens
+    ports:
+      - '5432:5432'
+    volumes:
+      - reviewlens-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U reviewlens -d reviewlens']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  reviewlens-db:
