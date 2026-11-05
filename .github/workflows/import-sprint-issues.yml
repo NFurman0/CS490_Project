@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       csv_path:
-        description: "Path to the sprint issue CSV file in this repository"
+        description: 'Path to the sprint issue CSV file in this repository'
         required: true
-        default: "Sprint1Issues.csv"
+        default: 'Sprint1Issues.csv'
         type: string
       dry_run:
-        description: "Preview what would be created without creating issues"
+        description: 'Preview what would be created without creating issues'
         required: true
         default: true
         type: boolean
@@ -30,7 +30,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
       - name: Import sprint issues
         env:
