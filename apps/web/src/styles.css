@@ -1,22 +1,23 @@
-/* Placeholder styles. The visual system is defined in docs/ui-ux-standards.md (S1-002). */
+/* Tokens from docs/ui-ux-standards.md §7. Spacing uses rem/em/%, never fixed pixels (§2). */
 :root {
-  --color-bg: #ffffff;
-  --color-text: #1c2430;
-  --color-muted: #5b6676;
+  --color-bg: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-text: #000000;
+  --color-muted: #4a5260;
   --color-border: #dde3ea;
-  color-scheme: light;
-  font-family: system-ui, sans-serif;
+  --color-primary: #1b56fd;
+  --color-primary-hover: #184bd9;
+  --color-success: #137333;
+  --color-error: #b3261e;
+  --font-body: Inter, 'Open Sans', Arial, sans-serif;
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  font-family: var(--font-body);
+  font-size: 1em;
   line-height: 1.5;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #141a22;
-    --color-text: #e6ebf1;
-    --color-muted: #9aa6b5;
-    --color-border: #2a3441;
-    color-scheme: dark;
-  }
+  color-scheme: light;
 }
 
 body {
@@ -26,19 +27,63 @@ body {
 }
 
 .shell-header {
-  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
 
 .wordmark {
   font-weight: 700;
+  font-size: 1.25em;
+}
+
+.account-controls {
+  display: flex;
+  align-items: center;
 }
 
 .shell-main {
-  max-width: 48rem;
-  padding: 2rem 1.5rem;
+  padding: var(--space-4) var(--space-3);
 }
 
 .shell-main p {
-  color: var(--color-muted);
+  max-width: 75ch;
+}
+
+.button {
+  font: inherit;
+  padding: 0.5em 1.25em;
+  border-radius: 0.375em;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.button-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.button-primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.button:focus-visible {
+  outline: 0.1875em solid var(--color-primary);
+  outline-offset: 0.125em;
+}
+
+.status-success {
+  color: var(--color-success);
+}
+
+.status-error {
+  color: var(--color-error);
 }

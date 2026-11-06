@@ -1,3 +1,4 @@
+import { isClerkPublishableKey } from '@reviewlens/shared';
 import { z } from 'zod';
 
 const placeholder = /replace_me/;
@@ -10,11 +11,18 @@ const envSchema = z.object({
   CLERK_SECRET_KEY: z
     .string()
     .startsWith('sk_', 'must be a Clerk secret key (starts with sk_)')
+    .regex(
+      /^sk_(test|live)_[A-Za-z0-9]+$/,
+      'is not a complete Clerk secret key (use the copy button in the Clerk Dashboard)',
+    )
     .refine((v) => !placeholder.test(v), 'is still the .env.example placeholder'),
   CLERK_PUBLISHABLE_KEY: z
     .string()
-    .startsWith('pk_', 'must be a Clerk publishable key (starts with pk_)')
-    .refine((v) => !placeholder.test(v), 'is still the .env.example placeholder'),
+    .refine((v) => !placeholder.test(v), 'is still the .env.example placeholder')
+    .refine(
+      isClerkPublishableKey,
+      'is not a valid Clerk publishable key (copy it from the Clerk Dashboard)',
+    ),
   SERPAPI_API_KEY: z
     .string()
     .min(1)

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { parseWebEnv } from './env';
 
+const publishableKey = `pk_test_${btoa('example.clerk.accounts.dev$')}`;
+
 describe('parseWebEnv', () => {
   it('accepts valid public configuration', () => {
     const result = parseWebEnv({
       VITE_API_BASE_URL: 'http://localhost:3000',
-      VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_abc123',
+      VITE_CLERK_PUBLISHABLE_KEY: publishableKey,
     });
     expect(result.ok).toBe(true);
   });
