@@ -43,6 +43,8 @@ cp apps/web/.env.example apps/web/.env
 npm run db:up
 ```
 
+`db:up` creates the AnalysisTarget tables on a new database and applies pending Prisma migrations. To run the database-backed persistence tests locally, copy `apps/api/.env.test.example` to `apps/api/.env.test`, then start the isolated test database with `npm run db:test:up`. Stop it with `npm run db:test:down`.
+
 ## Running locally
 
 ```bash
@@ -75,17 +77,19 @@ To check the API directly, `curl -i http://localhost:3000/api/session` returns `
 
 All commands run from the repository root. CI runs the same commands on every pull request.
 
-| Command                | What it does                               |
-| ---------------------- | ------------------------------------------ |
-| `npm run dev`          | Start the API and web app with live reload |
-| `npm run lint`         | ESLint across all workspaces               |
-| `npm run format`       | Format all files with Prettier             |
-| `npm run format:check` | Check formatting without changing files    |
-| `npm run typecheck`    | TypeScript checks across all workspaces    |
-| `npm test`             | Run all unit and integration tests         |
-| `npm run build`        | Production builds of every workspace       |
-| `npm run db:up`        | Start the local PostgreSQL container       |
-| `npm run db:down`      | Stop it                                    |
+| Command                | What it does                                |
+| ---------------------- | ------------------------------------------- |
+| `npm run dev`          | Start the API and web app with live reload  |
+| `npm run lint`         | ESLint across all workspaces                |
+| `npm run format`       | Format all files with Prettier              |
+| `npm run format:check` | Check formatting without changing files     |
+| `npm run typecheck`    | TypeScript checks across all workspaces     |
+| `npm test`             | Run all unit and integration tests          |
+| `npm run build`        | Production builds of every workspace        |
+| `npm run db:up`        | Start the local PostgreSQL container        |
+| `npm run db:down`      | Stop it                                     |
+| `npm run db:test:up`   | Start the isolated PostgreSQL test database |
+| `npm run db:test:down` | Stop the isolated test database             |
 
 Run `lint`, `format:check`, `typecheck`, `test`, and `build` before opening a PR.
 
