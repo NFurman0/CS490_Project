@@ -25,6 +25,16 @@ describe('authentication', () => {
     });
   });
 
+  it('ignores client-supplied identity headers when there is no verified session', async () => {
+    const res = await request(createTestApp({ as: null }))
+      .get('/api/session')
+      .set('x-user-id', 'user_a')
+      .set('x-clerk-user-id', 'user_a');
+
+    expect(res.status).toBe(401);
+    expect(res.body).not.toHaveProperty('data');
+  });
+
   it('keeps the health check public', async () => {
     const res = await request(createTestApp({ as: null })).get('/api/health');
     expect(res.status).toBe(200);

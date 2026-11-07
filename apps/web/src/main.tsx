@@ -1,8 +1,9 @@
-import { ClerkProvider } from '@clerk/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router';
 import { App } from './app/App';
 import { ConfigErrorScreen } from './app/ConfigErrorScreen';
+import { ClerkProviderWithRouter } from './app/routing/ClerkProviderWithRouter';
 import { parseWebEnv } from './config/env';
 import './styles.css';
 
@@ -14,9 +15,11 @@ const config = parseWebEnv(import.meta.env);
 createRoot(root).render(
   <StrictMode>
     {config.ok ? (
-      <ClerkProvider publishableKey={config.env.VITE_CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
-        <App apiBaseUrl={config.env.VITE_API_BASE_URL} />
-      </ClerkProvider>
+      <BrowserRouter>
+        <ClerkProviderWithRouter publishableKey={config.env.VITE_CLERK_PUBLISHABLE_KEY}>
+          <App apiBaseUrl={config.env.VITE_API_BASE_URL} />
+        </ClerkProviderWithRouter>
+      </BrowserRouter>
     ) : (
       <ConfigErrorScreen problems={config.problems} />
     )}

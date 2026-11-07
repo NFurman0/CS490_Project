@@ -67,6 +67,8 @@ ReviewLens uses [Clerk](https://clerk.com) for sign-in. The keys in your `.env` 
 3. Copy the **secret key** (`sk_test_...`) into `CLERK_SECRET_KEY` in `apps/api/.env` only. It must never go in the web app's `.env`.
 4. Run `npm run dev`, open <http://localhost:5173>, and choose **Sign in**. After signing in, the page confirms that the API accepted your session.
 
+Every page except the home page requires sign-in. Opening one while signed out, such as <http://localhost:5173/analysis-targets>, sends you to sign in and then back to that page.
+
 To check the API directly, `curl -i http://localhost:3000/api/session` returns `401` without a session.
 
 ## Commands
