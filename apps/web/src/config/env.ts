@@ -1,11 +1,15 @@
+import { isClerkPublishableKey } from '@reviewlens/shared';
 import { z } from 'zod';
 
 const webEnvSchema = z.object({
   VITE_API_BASE_URL: z.url(),
   VITE_CLERK_PUBLISHABLE_KEY: z
     .string()
-    .startsWith('pk_', 'must be a Clerk publishable key (starts with pk_)')
-    .refine((v) => !v.includes('replace_me'), 'is still the .env.example placeholder'),
+    .refine((v) => !v.includes('replace_me'), 'is still the .env.example placeholder')
+    .refine(
+      isClerkPublishableKey,
+      'is not a valid Clerk publishable key (copy it from the Clerk Dashboard)',
+    ),
 });
 
 export type WebEnv = z.infer<typeof webEnvSchema>;

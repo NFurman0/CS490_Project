@@ -12,10 +12,13 @@ const MESSAGES: Record<ErrorCode, string> = {
   INTERNAL_ERROR: 'Something went wrong on our side. Please try again.',
 };
 
-const FALLBACK = MESSAGES.INTERNAL_ERROR;
+export const FALLBACK_MESSAGE = MESSAGES.INTERNAL_ERROR;
+
+export const NETWORK_ERROR_MESSAGE =
+  'Can’t reach ReviewLens right now. Check your connection and try again.';
 
 /** Turns any API error response body into a safe message for the user. */
 export function userMessageFor(responseBody: unknown): string {
   const parsed = apiErrorResponseSchema.safeParse(responseBody);
-  return parsed.success ? MESSAGES[parsed.data.error.code] : FALLBACK;
+  return parsed.success ? MESSAGES[parsed.data.error.code] : FALLBACK_MESSAGE;
 }

@@ -1,19 +1,28 @@
 import cors from 'cors';
-import express, { type Express, type Router } from 'express';
+import express, { Router, type Express } from 'express';
+import type { IdentityProvider } from './lib/identity.js';
 import type { Logger } from './lib/logger.js';
 import { createErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { requestId } from './middleware/request-id.js';
+import { requireUser } from './middleware/require-user.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { sessionRouter } from './modules/session/session.routes.js';
 
 export interface AppDependencies {
   logger: Logger;
   webOrigin: string;
-  /** Extra routers mounted under /api. Feature routers are added here as stories land. */
+  identity: IdentityProvider;
+  /** Extra protected routers mounted under /api. Feature routers are added here as stories land. */
   extraRouters?: { path: string; router: Router }[];
 }
 
 /** Builds the Express app without starting a server, so tests can use it directly. */
-export function createApp({ logger, webOrigin, extraRouters = [] }: AppDependencies): Express {
+export function createApp({
+  logger,
+  webOrigin,
+  identity,
+  extraRouters = [],
+}: AppDependencies): Express {
   const app = express();
 
   app.disable('x-powered-by');
@@ -21,8 +30,16 @@ export function createApp({ logger, webOrigin, extraRouters = [] }: AppDependenc
   app.use(cors({ origin: webOrigin }));
   app.use(express.json({ limit: '100kb' }));
 
+  // Public: the only route that does not require a session.
   app.use('/api/health', healthRouter);
-  for (const { path, router } of extraRouters) app.use(`/api${path}`, router);
+
+  // Protected: everything else under /api requires a verified session.
+  const api = Router();
+  for (const middleware of identity.middleware) api.use(middleware);
+  api.use(requireUser(identity));
+  api.use('/session', sessionRouter);
+  for (const { path, router } of extraRouters) api.use(path, router);
+  app.use('/api', api);
 
   app.use(notFoundHandler);
   app.use(createErrorHandler(logger));

@@ -58,6 +58,17 @@ If configuration is missing or invalid, the API stops with a message naming each
 
 To stop the database: `npm run db:down`. Your data is kept in a Docker volume between runs.
 
+## Signing in locally
+
+ReviewLens uses [Clerk](https://clerk.com) for sign-in. The keys in your `.env` files must be real keys from the team's Clerk development application; made-up values are rejected at startup (Reach out to Aakash for keys).
+
+1. In the Clerk Dashboard, open the team's development application and go to **Configure → API keys**.
+2. Copy the **publishable key** (`pk_test_...`) into `VITE_CLERK_PUBLISHABLE_KEY` in `apps/web/.env` and `CLERK_PUBLISHABLE_KEY` in `apps/api/.env`.
+3. Copy the **secret key** (`sk_test_...`) into `CLERK_SECRET_KEY` in `apps/api/.env` only. It must never go in the web app's `.env`.
+4. Run `npm run dev`, open <http://localhost:5173>, and choose **Sign in**. After signing in, the page confirms that the API accepted your session.
+
+To check the API directly, `curl -i http://localhost:3000/api/session` returns `401` without a session.
+
 ## Commands
 
 All commands run from the repository root. CI runs the same commands on every pull request.

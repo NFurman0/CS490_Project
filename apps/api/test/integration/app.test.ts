@@ -17,7 +17,7 @@ probe.get('/crash', () => {
   throw new Error('connect ECONNREFUSED 10.0.0.5:5432 password=hunter2');
 });
 
-const app = createTestApp([{ path: '/probe', router: probe }]);
+const app = createTestApp({ extraRouters: [{ path: '/probe', router: probe }] });
 
 describe('GET /api/health', () => {
   it('returns ok without authentication', async () => {
