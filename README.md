@@ -20,6 +20,7 @@ Before writing code, read:
 - [`docs/security-guardrails.md`](docs/security-guardrails.md): Ownership, Auth, and Security rules
 - [`docs/ui-ux-standards.md`](docs/ui-ux-standards.md): Interface conventions
 - [`docs/ai-assisted-development.md`](docs/ai-assisted-development.md): Rules for AI-generated code
+- [`docs/ingestion-approach.md`](docs/ingestion-approach.md): How reviews are obtained from Google Maps via SerpApi
 
 ## Prerequisites
 

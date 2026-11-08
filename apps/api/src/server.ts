@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { createClerkIdentityProvider } from './adapters/clerk/clerk-identity-provider.js';
+import { createSerpApiReviewSource } from './adapters/serpapi/serpapi-review-source.js';
 import { createApp } from './app.js';
 import { ConfigError, loadEnv, type Env } from './config/env.js';
 import { createLogger } from './lib/logger.js';
@@ -26,7 +27,8 @@ const identity = createClerkIdentityProvider({
   authorizedParties: [env.WEB_ORIGIN],
   logger,
 });
-const app = createApp({ logger, webOrigin: env.WEB_ORIGIN, identity });
+const reviewSource = createSerpApiReviewSource({ apiKey: env.SERPAPI_API_KEY, logger });
+const app = createApp({ logger, webOrigin: env.WEB_ORIGIN, identity, reviewSource });
 
 app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'ReviewLens API listening');

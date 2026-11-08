@@ -1,0 +1,72 @@
+{
+  "search_metadata": {
+    "id": "fixture-page-1",
+    "status": "Success",
+    "json_endpoint": "[scrubbed]",
+    "google_maps_reviews_url": "[scrubbed]"
+  },
+  "search_parameters": {
+    "engine": "google_maps_reviews",
+    "data_id": "0x89c25a197c06b7cb:0x40a06c78f79e5de6",
+    "hl": "en",
+    "sort_by": "newestFirst"
+  },
+  "place_info": {
+    "title": "Corner Slice Pizzeria",
+    "address": "123 Example Ave, Newark, NJ 07102",
+    "rating": 4.4,
+    "reviews": 1287,
+    "type": "Pizza restaurant"
+  },
+  "reviews": [
+    {
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sFIXTURE_REVIEW_1",
+      "rating": 5,
+      "date": "a week ago",
+      "iso_date": "2026-10-30T18:22:41Z",
+      "source": "Google",
+      "review_id": "FIXTURE_REVIEW_1",
+      "user": { "name": "Sample Reviewer A", "reviews": 42, "photos": 10, "local_guide": true },
+      "snippet": "Best plain slice in the area. Crust is thin and crispy and the line moves fast.",
+      "extracted_snippet": {
+        "original": "Best plain slice in the area. Crust is thin and crispy and the line moves fast."
+      },
+      "likes": 3,
+      "response": {
+        "date": "6 days ago",
+        "iso_date": "2026-10-31T14:00:00Z",
+        "snippet": "Thanks for stopping by!"
+      }
+    },
+    {
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sFIXTURE_REVIEW_2",
+      "rating": 2,
+      "date": "2 weeks ago",
+      "iso_date": "2026-10-23T01:05:12Z",
+      "source": "Google",
+      "review_id": "FIXTURE_REVIEW_2",
+      "user": { "name": "Sample Reviewer B", "reviews": 3, "local_guide": false },
+      "snippet": "Delivery took over an hour and the pizza arrived cold.",
+      "extracted_snippet": { "original": "Delivery took over an hour and the pizza arrived cold." },
+      "likes": 0
+    },
+    {
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sFIXTURE_REVIEW_3",
+      "rating": 4,
+      "date": "3 weeks ago",
+      "iso_date": "2026-10-16T20:47:03Z",
+      "source": "Google",
+      "review_id": "FIXTURE_REVIEW_3",
+      "user": { "name": "Sample Reviewer C", "reviews": 17, "local_guide": false },
+      "snippet": "(Translated by Google) Good pizza, friendly staff.",
+      "extracted_snippet": {
+        "original": "Buena pizza, personal amable.",
+        "translated": "Good pizza, friendly staff."
+      }
+    }
+  ],
+  "serpapi_pagination": {
+    "next": "[scrubbed]",
+    "next_page_token": "FIXTURE_TOKEN_PAGE_2"
+  }
+}

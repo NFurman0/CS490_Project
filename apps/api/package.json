@@ -8,7 +8,8 @@
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "record:fixture": "tsx --conditions=source scripts/record-serpapi-fixture.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.88",
