@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { PrismaClient, ReviewPlatform } from '@prisma/client';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import request from 'supertest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTargetsRouter } from '../../src/modules/targets/targets.routes.js';
 import { createTargetsRepository } from '../../src/modules/targets/targets.repository.js';
+import { createTargetsService } from '../../src/modules/targets/targets.service.js';
+import { createUsersRepository } from '../../src/modules/users/users.repository.js';
+import type { ReviewSource } from '../../src/modules/ingestion/review-source.js';
+import { createTestApp } from '../helpers/test-app.js';
 
 const testEnvPath = existsSync('.env.test') ? '.env.test' : 'apps/api/.env.test';
 if (existsSync(testEnvPath)) {
@@ -11,12 +17,41 @@ if (existsSync(testEnvPath)) {
 }
 
 const databaseUrl = process.env.DATABASE_URL;
+if (databaseUrl && new URL(databaseUrl).pathname !== '/reviewlens_test') {
+  throw new Error(
+    'AnalysisTarget integration tests require the dedicated reviewlens_test database.',
+  );
+}
 const prisma = new PrismaClient({
   datasources: {
     db: { url: databaseUrl ?? 'postgresql://reviewlens:reviewlens@localhost:5433/reviewlens_test' },
   },
 });
 const targetsRepository = createTargetsRepository(prisma);
+const usersRepository = createUsersRepository(prisma);
+
+const validTargetInput = {
+  name: "Joe's Pizza",
+  sourceUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJN1t_tDeuEmsRUsoyG83frY4',
+};
+
+function createTargetsApp({
+  as,
+  validateSourceUrl,
+  fetchReviews = vi.fn<ReviewSource['fetchReviews']>(),
+}: {
+  as: string | null;
+  validateSourceUrl: (sourceUrl: string) => Promise<boolean>;
+  fetchReviews?: ReviewSource['fetchReviews'];
+}) {
+  const service = createTargetsService({ repository: targetsRepository, validateSourceUrl });
+  return createTestApp({
+    as,
+    usersRepository,
+    reviewSource: { fetchReviews },
+    extraRouters: [{ path: '/analysis-targets', router: createTargetsRouter(service) }],
+  });
+}
 
 describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
   let ownerAId: string;
@@ -85,6 +120,98 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
       }),
     ).rejects.toThrow();
 
+    expect(await prisma.analysisTarget.count()).toBe(0);
+  });
+
+  it('creates an authenticated user target with server-assigned ownership', async () => {
+    const validateSourceUrl = vi.fn(async () => true);
+    const fetchReviews = vi.fn();
+    const app = createTargetsApp({
+      as: 'clerk-create-target-a',
+      validateSourceUrl,
+      fetchReviews,
+    });
+
+    const response = await request(app).post('/api/analysis-targets').send(validTargetInput);
+
+    expect(response.status).toBe(201);
+    expect(response.body.data).toMatchObject({
+      id: expect.any(String),
+      name: validTargetInput.name,
+      platform: 'google_maps',
+      sourceUrl: validTargetInput.sourceUrl,
+      createdAt: expect.any(String),
+    });
+    expect(response.body.data).not.toHaveProperty('ownerId');
+    expect(JSON.stringify(response.body)).not.toContain('clerk-create-target-a');
+    expect(validateSourceUrl).toHaveBeenCalledWith(validTargetInput.sourceUrl);
+    expect(fetchReviews).not.toHaveBeenCalled();
+
+    const owner = await prisma.user.findUnique({
+      where: { clerkUserId: 'clerk-create-target-a' },
+    });
+    expect(owner).not.toBeNull();
+    if (!owner) throw new Error('Expected the authenticated user to be persisted.');
+    await expect(
+      targetsRepository.findById(owner.id, response.body.data.id),
+    ).resolves.toMatchObject({
+      name: validTargetInput.name,
+      ownerId: owner.id,
+      platform: ReviewPlatform.GOOGLE_MAPS,
+    });
+  });
+
+  it('rejects unsupported place URLs and leaves the database unchanged', async () => {
+    const app = createTargetsApp({
+      as: 'clerk-invalid-target',
+      validateSourceUrl: vi.fn(async () => false),
+    });
+
+    const response = await request(app)
+      .post('/api/analysis-targets')
+      .send({ ...validTargetInput, sourceUrl: 'https://www.google.com/maps/search/pizza' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_FAILED');
+    expect(response.body.error.details.fieldErrors.sourceUrl).toContain(
+      'Enter a Google Maps place or share link.',
+    );
+    expect(JSON.stringify(response.body)).not.toContain(validTargetInput.name);
+    expect(await prisma.analysisTarget.count()).toBe(0);
+  });
+
+  it('rejects missing fields, malformed URLs, and client-supplied ownership', async () => {
+    const validateSourceUrl = vi.fn(async () => true);
+    const app = createTargetsApp({ as: 'clerk-invalid-body', validateSourceUrl });
+    const cases = [
+      { body: { ...validTargetInput, name: ' ' }, field: 'name' },
+      { body: { ...validTargetInput, sourceUrl: 'not-a-url' }, field: 'sourceUrl' },
+      { body: { ...validTargetInput, ownerId: ownerAId }, field: 'ownerId' },
+    ];
+
+    for (const { body, field } of cases) {
+      const response = await request(app).post('/api/analysis-targets').send(body);
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_FAILED');
+      if (field !== 'ownerId') {
+        expect(response.body.error.details.fieldErrors[field]).toBeDefined();
+      }
+    }
+
+    expect(validateSourceUrl).not.toHaveBeenCalled();
+    expect(await prisma.analysisTarget.count()).toBe(0);
+  });
+
+  it('requires authentication before validating or persisting a target', async () => {
+    const validateSourceUrl = vi.fn(async () => true);
+    const response = await request(createTargetsApp({ as: null, validateSourceUrl }))
+      .post('/api/analysis-targets')
+      .send(validTargetInput);
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHENTICATED');
+    expect(response.body).not.toHaveProperty('data');
+    expect(validateSourceUrl).not.toHaveBeenCalled();
     expect(await prisma.analysisTarget.count()).toBe(0);
   });
 });

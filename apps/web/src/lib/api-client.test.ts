@@ -48,6 +48,41 @@ describe('createApiClient', () => {
     expect(new Headers(fetchImpl.mock.calls[0]![1]?.headers).has('Authorization')).toBe(false);
   });
 
+  it('posts JSON with the current session token and returns the created resource', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse(201, { data: { id: 'target-1' } }),
+    );
+
+    await expect(
+      clientWith(fetchImpl).post('/api/analysis-targets', { name: 'Place' }),
+    ).resolves.toEqual({ id: 'target-1' });
+
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(String(url)).toBe('http://localhost:3000/api/analysis-targets');
+    expect(init?.method).toBe('POST');
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer token-123');
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    expect(init?.body).toBe(JSON.stringify({ name: 'Place' }));
+  });
+
+  it('preserves structured field errors for validation feedback', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, {
+        error: {
+          code: 'VALIDATION_FAILED',
+          message: 'Please check the highlighted fields.',
+          details: { fieldErrors: { sourceUrl: ['Enter a Google Maps place or share link.'] } },
+        },
+      }),
+    );
+
+    const error = await captureApiError(clientWith(fetchImpl).post('/api/analysis-targets', {}));
+
+    expect(error.details).toEqual({
+      fieldErrors: { sourceUrl: ['Enter a Google Maps place or share link.'] },
+    });
+  });
+
   it('turns an error envelope into a user-safe message and keeps the code', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () =>
       jsonResponse(401, { error: { code: 'UNAUTHENTICATED', message: 'jwt expired' } }),

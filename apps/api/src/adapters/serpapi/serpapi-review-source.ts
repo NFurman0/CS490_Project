@@ -5,7 +5,7 @@ import type {
   ReviewSource,
   SourcePlace,
 } from '../../modules/ingestion/review-source.js';
-import { resolvePlaceRef } from './place-url.js';
+import { DEFAULT_SOURCE_RESOLUTION_TIMEOUT_MS, resolvePlaceRef } from './place-url.js';
 import { fetchReviewsPage } from './serpapi.client.js';
 
 export interface SerpApiReviewSourceConfig {
@@ -17,8 +17,6 @@ export interface SerpApiReviewSourceConfig {
   timeoutMs?: number;
 }
 
-const DEFAULT_TIMEOUT_MS = 15_000;
-
 /**
  * Gets Google Maps reviews through SerpApi's Google Maps Reviews API
  * (docs/ingestion-approach.md). Each page costs one SerpApi search, so paging
@@ -28,7 +26,7 @@ export function createSerpApiReviewSource({
   apiKey,
   logger,
   fetchFn = fetch,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs = DEFAULT_SOURCE_RESOLUTION_TIMEOUT_MS,
 }: SerpApiReviewSourceConfig): ReviewSource {
   return {
     async fetchReviews({ sourceUrl, maxReviews }): Promise<FetchReviewsResult> {

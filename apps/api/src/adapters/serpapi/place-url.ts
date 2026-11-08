@@ -13,6 +13,7 @@ const DATA_ID = /^0x[0-9a-f]+:0x[0-9a-f]+$/i;
 const PLACE_ID = /^[A-Za-z0-9_-]{10,}$/;
 
 const MAX_REDIRECTS = 3;
+export const DEFAULT_SOURCE_RESOLUTION_TIMEOUT_MS = 15_000;
 
 export interface ResolvePlaceOptions {
   fetchFn: typeof fetch;

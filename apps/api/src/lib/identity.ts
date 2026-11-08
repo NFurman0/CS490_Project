@@ -10,6 +10,7 @@ export interface VerifiedIdentity {
  * The authenticated caller, set by `requireUser`.
  */
 export interface AuthenticatedUser {
+  id: string;
   clerkUserId: string;
 }
 
