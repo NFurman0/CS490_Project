@@ -1,0 +1,30 @@
+{
+  "search_metadata": { "id": "fixture-malformed", "status": "Success" },
+  "place_info": { "title": "Corner Slice Pizzeria", "reviews": "not a number" },
+  "reviews": [
+    {
+      "review_id": "FIXTURE_MISSING_TEXT",
+      "rating": 4,
+      "iso_date": "2026-10-01T00:00:00Z",
+      "user": { "name": "Rating Only" }
+    },
+    {
+      "review_id": "FIXTURE_BAD_RATING",
+      "rating": "five",
+      "snippet": "Rating came back as a string."
+    },
+    {
+      "review_id": "FIXTURE_NO_METADATA",
+      "rating": 1,
+      "snippet": "No reviewer, date, or link on this one."
+    },
+    {
+      "review_id": "FIXTURE_BLANK_TEXT",
+      "rating": 3,
+      "snippet": "   ",
+      "user": "not an object"
+    },
+    "not a review object",
+    null
+  ]
+}

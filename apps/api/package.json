@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:migrate:test": "node scripts/migrate-test-db.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "record:fixture": "tsx --conditions=source scripts/record-serpapi-fixture.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.88",

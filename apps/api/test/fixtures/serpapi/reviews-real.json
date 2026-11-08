@@ -1,0 +1,375 @@
+{
+  "search_metadata": {
+    "id": "6af03372fc92485407c63e6f",
+    "status": "Success",
+    "json_endpoint": "[scrubbed]",
+    "markdown_endpoint": "https://serpapi.com/searches/FaKTa7bsDOZ1kBl1_5CeouTSdpEOz3yqF4ivXVykpjc/6af03372fc92485407c63e6f.md",
+    "created_at": "2026-11-08 08:31:46 UTC",
+    "processed_at": "2026-11-08 08:31:46 UTC",
+    "google_maps_reviews_url": "[scrubbed]",
+    "raw_html_file": "[scrubbed]",
+    "prettify_html_file": "https://serpapi.com/searches/FaKTa7bsDOZ1kBl1_5CeouTSdpEOz3yqF4ivXVykpjc/6af03372fc92485407c63e6f.prettify",
+    "total_time_taken": 1.29
+  },
+  "search_parameters": {
+    "engine": "google_maps_reviews",
+    "data_id": "0x89c2596c4887e2a3:0xddb2f8e53c1226bb",
+    "hl": "en",
+    "sort_by": "newestFirst"
+  },
+  "place_info": {
+    "title": "Blank Street",
+    "address": "418 Columbus Ave, New York, NY 10024",
+    "rating": 4.8,
+    "reviews": 298,
+    "type": "Coffee shop"
+  },
+  "topics": [
+    {
+      "keyword": "matcha",
+      "mentions": 50,
+      "id": "IV-Ey_IEZEY"
+    },
+    {
+      "keyword": "cherry glaze cold brew",
+      "mentions": 2,
+      "id": "go5U-o9ZpW4"
+    },
+    {
+      "keyword": "mystery book",
+      "mentions": 2,
+      "id": "OwGAK7VHxuM"
+    },
+    {
+      "keyword": "free book",
+      "mentions": 2,
+      "id": "e2EY0pXvl2M"
+    },
+    {
+      "keyword": "friendly staff",
+      "mentions": 43,
+      "id": "BP8_dBsAxLY"
+    },
+    {
+      "keyword": "kind staff",
+      "mentions": 14,
+      "id": "DukFdBtQwOY"
+    },
+    {
+      "keyword": "strawberry shortcake",
+      "mentions": 5,
+      "id": "AEtY6t5r7V4"
+    },
+    {
+      "keyword": "vanilla latte",
+      "mentions": 5,
+      "id": "C-2y34t2cxQ"
+    },
+    {
+      "keyword": "newest location",
+      "mentions": 2,
+      "id": "IAijERu36uU"
+    },
+    {
+      "keyword": "sweet staff",
+      "mentions": 4,
+      "id": "BusEZPtQ5eY"
+    }
+  ],
+  "reviews": [
+    {
+      "position": 1,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2pSQmVFdzJPVkp3VDNCTVlqbHVUVWR4VDJoQlJIYxAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOjRBeEw2OVJwT3BMYjluTUdxT2hBRHc%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "7 hours ago",
+      "iso_date": "2026-11-08T00:38:54Z",
+      "iso_date_of_last_edit": "2026-11-08T00:38:54Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2pSQmVFdzJPVkp3VDNCTVlqbHVUVWR4VDJoQlJIYxAB",
+      "user": {
+        "name": "Sandra Davis",
+        "link": "https://www.google.com/maps/contrib/110760737694546355564/reviews?hl=en-US",
+        "contributor_id": "110760737694546355564",
+        "thumbnail": "https://lh3.googleusercontent.com/a-/ALV-UjWc-hBr5uYbmJ9dBChhILsFjA4-rsXlFQIXNaPjMARQ7AmkCaTr=s64-c-rp-mo-br100",
+        "reviews": 4,
+        "photos": 0
+      },
+      "snippet": "My first time at this location and the service was great, the atmosphere was very nice and the night time was amazing. Will definitely will recommend to my friends and family.",
+      "extracted_snippet": {
+        "original": "My first time at this location and the service was great, the atmosphere was very nice and the night time was amazing. Will definitely will recommend to my friends and family."
+      },
+      "details": {
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5
+      },
+      "likes": 0
+    },
+    {
+      "position": 2,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2xGT1FrZG9jbWRWU2tveFExUkxUblpSVERCaloxRRAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOlFOQkdocmdVSkoxQ1RLTnZRTDBjZ1E%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "15 hours ago",
+      "iso_date": "2026-11-07T16:38:25Z",
+      "iso_date_of_last_edit": "2026-11-07T16:38:25Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2xGT1FrZG9jbWRWU2tveFExUkxUblpSVERCaloxRRAB",
+      "user": {
+        "name": "Stephanie G",
+        "link": "https://www.google.com/maps/contrib/110318186099988262558/reviews?hl=en-US",
+        "contributor_id": "110318186099988262558",
+        "thumbnail": "https://lh3.googleusercontent.com/a-/ALV-UjWMmaTesNMLFH7XUnR6BKQNmZspuWGQh3WKSJzdFrNFURDfHTr_6g=s64-c-rp-mo-ba12-br100",
+        "local_guide": true,
+        "reviews": 18,
+        "photos": 0
+      },
+      "snippet": "Christian was so fun and made the whole place a vibe. Cookie butter blondie latte is also delicious!!!",
+      "extracted_snippet": {
+        "original": "Christian was so fun and made the whole place a vibe. Cookie butter blondie latte is also delicious!!!"
+      },
+      "details": {
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5
+      },
+      "likes": 0
+    },
+    {
+      "position": 3,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2xFeFZuRlhiemswZG5aVlExUnplVEl5ZFVJMVdWRRAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOlExVnFXbzk0dnZVQ1RzeTIydUI1WVE%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "16 hours ago",
+      "iso_date": "2026-11-07T16:02:58Z",
+      "iso_date_of_last_edit": "2026-11-07T16:02:58Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2xFeFZuRlhiemswZG5aVlExUnplVEl5ZFVJMVdWRRAB",
+      "user": {
+        "name": "Duane DeMong",
+        "link": "https://www.google.com/maps/contrib/100679533242736614801/reviews?hl=en-US",
+        "contributor_id": "100679533242736614801",
+        "thumbnail": "https://lh3.googleusercontent.com/a/ACg8ocKOJMWCg3x1JJDIXklTAZ0TPFsu7BESuB4uyqUERjvKWN1PBA=s64-c-rp-mo-br100",
+        "reviews": 1,
+        "photos": 0
+      },
+      "details": {
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5
+      },
+      "likes": 0
+    },
+    {
+      "position": 4,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT25FMFdqbEJWMWR2ZVdNME5YZHpTSGRpZG1nMUxVRRAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOnE0WjlBV1dveWM0NXdzSHdidmg1LUE%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "2 days ago",
+      "iso_date": "2026-11-05T20:12:54Z",
+      "iso_date_of_last_edit": "2026-11-05T20:12:54Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT25FMFdqbEJWMWR2ZVdNME5YZHpTSGRpZG1nMUxVRRAB",
+      "user": {
+        "name": "Magda Ayman",
+        "link": "https://www.google.com/maps/contrib/102786608509675706988/reviews?hl=en-US",
+        "contributor_id": "102786608509675706988",
+        "thumbnail": "https://lh3.googleusercontent.com/a/ACg8ocIG3InVJODbHxXjgKt6uB6MzSzqcIajekyuc2bSjpVHNAORaA=s64-c-rp-mo-br100",
+        "reviews": 1,
+        "photos": 0
+      },
+      "likes": 0
+    },
+    {
+      "position": 5,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2tGeldWcElRMWhKY2tWMFFYRjZXbUZhY0ZsRmNYYxAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOkFzWVpIQ1hJckV0QXF6WmFacFlFcXc%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "3 days ago",
+      "iso_date": "2026-11-04T22:52:51Z",
+      "iso_date_of_last_edit": "2026-11-04T22:52:51Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2tGeldWcElRMWhKY2tWMFFYRjZXbUZhY0ZsRmNYYxAB",
+      "user": {
+        "name": "Tamás Pepó",
+        "link": "https://www.google.com/maps/contrib/116617829426636444010/reviews?hl=en-US",
+        "contributor_id": "116617829426636444010",
+        "thumbnail": "https://lh3.googleusercontent.com/a-/ALV-UjVSe7Kb5aOvy_oLDarUWoPjN-H66qvrIQTUKxpKyZDPLJBd4NBj=s64-c-rp-mo-ba12-br100",
+        "local_guide": true,
+        "reviews": 180,
+        "photos": 674
+      },
+      "snippet": "We drank the Daydream coffee and Harvest chai after the recommendation of the guys there, and this coffee is truly brilliant just as their service! Thank you!",
+      "extracted_snippet": {
+        "original": "We drank the Daydream coffee and Harvest chai after the recommendation of the guys there, and this coffee is truly brilliant just as their service! Thank you!"
+      },
+      "details": {
+        "meal_type": "Other",
+        "price_per_person": "$1–10",
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5,
+        "noise_level": "Quiet, easy to talk",
+        "seating_type": "Bar area, Counter seating"
+      },
+      "likes": 0
+    },
+    {
+      "position": 6,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2s4NGMzWktSakZSYzJWNWNXUXdhMGxuTm1KYVUwRRAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOk84c3ZKRjFRc2V5cWQwa0lnNmJaU0E%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "4 days ago",
+      "iso_date": "2026-11-03T16:39:06Z",
+      "iso_date_of_last_edit": "2026-11-03T16:39:06Z",
+      "images": [
+        "https://lh3.googleusercontent.com/grass-cs/AABkmLcD8opFRCwO-e5YVQ2BoJBiBAVk8z6dLORYUV0G_tp3gBp3qChLW7ibesH4fIPW6Hopnw-0bVEqMCnxpOHDnvl1eEnKEPAEnUW5shtIxHILImiovjxuyySg6FtntaW1CHAHjgvQhFrSw0Y1=k-no",
+        "https://lh3.googleusercontent.com/grass-cs/AABkmLesTXvqSRxMBVYYRSAi8tVqaFXmKRcfo3MmnAlC_QXRzmNlLhq_haFRiE8Mrz6CsoER4LARz0c5HjgJXmZARGUz3g4r6ClvkSzq9dnfC2EkCEwEBRvk9jMOjIjSbT3ykhWwnmUMACr3V1p0=k-no"
+      ],
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2s4NGMzWktSakZSYzJWNWNXUXdhMGxuTm1KYVUwRRAB",
+      "user": {
+        "name": "Noam Sadovnik",
+        "link": "https://www.google.com/maps/contrib/107290235912020217262/reviews?hl=en-US",
+        "contributor_id": "107290235912020217262",
+        "thumbnail": "https://lh3.googleusercontent.com/a/ACg8ocKsJcQ-Uki1_xUkV2cnUoTzu_cwaHvmXZkxxw3dABeREujVIQ=s64-c-rp-mo-br100",
+        "reviews": 1,
+        "photos": 2
+      },
+      "snippet": "Top notch",
+      "extracted_snippet": {
+        "original": "Top notch"
+      },
+      "details": {
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5
+      },
+      "likes": 0
+    },
+    {
+      "position": 7,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2pGM01VUXdNbkJUUW01SFNXUkpPWE5RYlcweWFHYxAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOjF3MUQwMnBTQm5HSWRJOXNQbW0yaGc%7C%7C?hl=en-US",
+      "rating": 1,
+      "date": "5 days ago",
+      "iso_date": "2026-11-02T22:13:07Z",
+      "iso_date_of_last_edit": "2026-11-02T22:13:07Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2pGM01VUXdNbkJUUW01SFNXUkpPWE5RYlcweWFHYxAB",
+      "user": {
+        "name": "L S",
+        "link": "https://www.google.com/maps/contrib/113682251631498878112/reviews?hl=en-US",
+        "contributor_id": "113682251631498878112",
+        "thumbnail": "https://lh3.googleusercontent.com/a-/ALV-UjUauSggqeZZZXYuTrmZT1fXL95FwrHeu-2OJRw9ZqZZxK8km6bcbA=s64-c-rp-mo-ba12-br100",
+        "local_guide": true,
+        "reviews": 76,
+        "photos": 33
+      },
+      "snippet": "I was here at 5 PM on Monday, November 2nd. The guys working couldn’t handle the fact that I pointed out my matcha latte wasn’t hot, even though I specifically asked for it extra hot. When they offered to remake it, I simply asked for it iced instead, since apparently what I’d been served was their version of “extra hot.”\n\nSomehow, that simple request seemed to stress them out even more. Easily the worst Blank Street I’ve ever been to. I was scared they poisoned my drink after that because of their exaggerated reactions to my normal request.\n\nI walked in excited and left really stressed out and feeling gaslit.",
+      "extracted_snippet": {
+        "original": "I was here at 5 PM on Monday, November 2nd. The guys working couldn’t handle the fact that I pointed out my matcha latte wasn’t hot, even though I specifically asked for it extra hot. When they offered to remake it, I simply asked for it iced instead, since apparently what I’d been served was their version of “extra hot.”\n\nSomehow, that simple request seemed to stress them out even more. Easily the worst Blank Street I’ve ever been to. I was scared they poisoned my drink after that because of their exaggerated reactions to my normal request.\n\nI walked in excited and left really stressed out and feeling gaslit."
+      },
+      "details": {
+        "price_per_person": "$1–10",
+        "food": 1,
+        "service": 1,
+        "atmosphere": 1
+      },
+      "likes": 0,
+      "response": {
+        "date": "5 days ago",
+        "snippet": "Hi there. We’re truly sorry for the frustrating experience and the way your request was handled. You should feel comfortable raising concerns about your drink and expect a courteous response. We take your feedback seriously and will share it with the team for further review. Thank you for bringing this to our attention.",
+        "extracted_snippet": {
+          "original": "Hi there. We’re truly sorry for the frustrating experience and the way your request was handled. You should feel comfortable raising concerns about your drink and expect a courteous response. We take your feedback seriously and will share it with the team for further review. Thank you for bringing this to our attention."
+        }
+      }
+    },
+    {
+      "position": 8,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2pZNExUVkNNV2hwT1RkeWVraHVSRVo1WjNGdFdFRRAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOjY4LTVCMWhpOTdyekhuREZ5Z3FtWEE%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "5 days ago",
+      "iso_date": "2026-11-02T16:34:09Z",
+      "iso_date_of_last_edit": "2026-11-02T16:34:09Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2pZNExUVkNNV2hwT1RkeWVraHVSRVo1WjNGdFdFRRAB",
+      "user": {
+        "name": "K M",
+        "link": "https://www.google.com/maps/contrib/113840075035398184040/reviews?hl=en-US",
+        "contributor_id": "113840075035398184040",
+        "thumbnail": "https://lh3.googleusercontent.com/a/ACg8ocL7DtlciYsxPmbXozVxIEg3e48pnaQaJyHnAGEyPnPNh8-Cjg=s64-c-rp-mo-ba12-br100",
+        "local_guide": true,
+        "reviews": 33,
+        "photos": 1
+      },
+      "snippet": "This place is nothing but good vibes I love it",
+      "extracted_snippet": {
+        "original": "This place is nothing but good vibes I love it"
+      },
+      "details": {
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5
+      },
+      "likes": 0
+    },
+    {
+      "position": 9,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT25WcWFWaFVhelZvTVZKMVFsRTFXa2RCZWpZNVpFRRAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOnVqaVhUazVoMVJ1QlE1WkdBejY5ZEE%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "a week ago",
+      "iso_date": "2026-10-29T19:57:24Z",
+      "iso_date_of_last_edit": "2026-10-29T19:57:24Z",
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT25WcWFWaFVhelZvTVZKMVFsRTFXa2RCZWpZNVpFRRAB",
+      "user": {
+        "name": "Emmanuel Perez",
+        "link": "https://www.google.com/maps/contrib/104740649513920985976/reviews?hl=en-US",
+        "contributor_id": "104740649513920985976",
+        "thumbnail": "https://lh3.googleusercontent.com/a/ACg8ocLAWECEIbE_atkDXfDGPeUi4RpYNugvEVgcMTQM-JYFMJXspA=s64-c-rp-mo-br100",
+        "reviews": 1,
+        "photos": 0
+      },
+      "snippet": "Will and his team are very welcoming and it literally feels like a second home. Best baristas I’ve ever seen. The latte art is also exceptional.  Definitely give this place a try.",
+      "extracted_snippet": {
+        "original": "Will and his team are very welcoming and it literally feels like a second home. Best baristas I’ve ever seen. The latte art is also exceptional.  Definitely give this place a try."
+      },
+      "details": {
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5
+      },
+      "likes": 0
+    },
+    {
+      "position": 10,
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2t4SFJURXhYMmh3TjBwTlRWTTJaRkJKWVVKSllrRRAB!2m1!1s0x0:0xddb2f8e53c1226bb!3m1!1s2@1:CAIQACodChtycF9oOkxHRTExX2hwN0pNTVM2ZFBJYUJJYkE%7C%7C?hl=en-US",
+      "rating": 5,
+      "date": "a week ago",
+      "iso_date": "2026-10-29T18:41:32Z",
+      "iso_date_of_last_edit": "2026-10-29T18:41:32Z",
+      "images": [
+        "https://lh3.googleusercontent.com/grass-cs/AABkmLeIlnZ1zN_n0kF_WIMknYcgpOJu71l11XzGPWBZNOJlB3WBgngvuPnRtxyv0hEsPy3lP2G6XeL2tV9OBZCC7t2ickTFC-zLsNPk7fF5F0TUessmirHsC2xU04m1YtJUHMGL5agzGIe0R2Q=k-no"
+      ],
+      "source": "Google",
+      "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2t4SFJURXhYMmh3TjBwTlRWTTJaRkJKWVVKSllrRRAB",
+      "user": {
+        "name": "Novel Jay Equina",
+        "link": "https://www.google.com/maps/contrib/102981000287822225013/reviews?hl=en-US",
+        "contributor_id": "102981000287822225013",
+        "thumbnail": "https://lh3.googleusercontent.com/a/ACg8ocIncZvmxjyFOE_v4oG_Bbg44XWmgbB_2LzlY0k5dsCSxoZmTw=s64-c-rp-mo-br100",
+        "reviews": 3,
+        "photos": 1
+      },
+      "snippet": "Ordered a daydream, it was perfect! Great service friendly staff! Efficient as hell!!  Love\nTo come back and order my fav drink just a nice blend of vanilla, honey and cinnamon in my matcha ❤️❤️❤️",
+      "extracted_snippet": {
+        "original": "Ordered a daydream, it was perfect! Great service friendly staff! Efficient as hell!!  Love\nTo come back and order my fav drink just a nice blend of vanilla, honey and cinnamon in my matcha ❤️❤️❤️"
+      },
+      "details": {
+        "food": 5,
+        "service": 5,
+        "atmosphere": 5
+      },
+      "likes": 0
+    }
+  ],
+  "serpapi_pagination": {
+    "next": "[scrubbed]",
+    "next_page_token": "Ci8IARInCgoAP72F53CF7l__EhBozLL8GZqZIyxIy7YAAAAAGgf_Al53CF7lGAAiAA"
+  }
+}

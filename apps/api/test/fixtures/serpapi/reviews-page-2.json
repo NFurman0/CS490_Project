@@ -1,0 +1,31 @@
+{
+  "search_metadata": { "id": "fixture-page-2", "status": "Success" },
+  "search_parameters": {
+    "engine": "google_maps_reviews",
+    "data_id": "0x89c25a197c06b7cb:0x40a06c78f79e5de6",
+    "next_page_token": "FIXTURE_TOKEN_PAGE_2",
+    "num": "20"
+  },
+  "reviews": [
+    {
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sFIXTURE_REVIEW_4",
+      "rating": 3,
+      "date": "a month ago",
+      "iso_date": "2026-10-02T12:00:00Z",
+      "source": "Google",
+      "review_id": "FIXTURE_REVIEW_4",
+      "user": { "name": "Sample Reviewer D" },
+      "snippet": "Fine for a quick lunch. Nothing special."
+    },
+    {
+      "link": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sFIXTURE_REVIEW_5",
+      "rating": 5,
+      "date": "2 months ago",
+      "iso_date": "2026-09-08T09:30:00Z",
+      "source": "Google",
+      "review_id": "FIXTURE_REVIEW_5",
+      "user": { "name": "Sample Reviewer E", "local_guide": true },
+      "snippet": "Garlic knots are excellent."
+    }
+  ]
+}

@@ -14,6 +14,9 @@ export const REDACT_PATHS = [
   '*.CLERK_SECRET_KEY',
   '*.SERPAPI_API_KEY',
   '*.DATABASE_URL',
+  // SerpApi request URLs carry api_key as a query parameter.
+  '*.url',
+  '*.requestUrl',
 ];
 
 export function createLogger(level: Env['LOG_LEVEL']): Logger {
