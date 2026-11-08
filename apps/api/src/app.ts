@@ -11,7 +11,7 @@ import { sessionRouter } from './modules/session/session.routes.js';
 
 export interface AppDependencies {
   logger: Logger;
-  /** Maps verified provider identities to internal user records. */
+  // Maps verified identities to internal users (the users table in production)
   users: UserDirectory;
   webOrigin: string;
   identity: IdentityProvider;
