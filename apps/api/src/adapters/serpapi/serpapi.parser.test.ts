@@ -73,6 +73,25 @@ describe('parseReviewsPage', () => {
     }
   });
 
+  // Recorded from the live SerpApi API, so this checks structure rather than exact text.
+  it('parses a real recorded SerpApi response into individual reviews', () => {
+    const parsed = parseReviewsPage(loadSerpApiFixture('reviews-real.json'));
+    if (parsed.kind !== 'page') throw new Error(`expected a page, got ${parsed.kind}`);
+
+    expect(parsed.place.title).not.toBeNull();
+    expect(parsed.reviews.length).toBeGreaterThan(0);
+    expect(parsed.nextPageToken).not.toBeNull();
+    for (const review of parsed.reviews) {
+      expect(review.sourceReviewId).toEqual(expect.any(String));
+      expect(review.rating).toEqual(expect.any(Number));
+      expect(review.publishedAt).toEqual(expect.any(String));
+    }
+    const ids = parsed.reviews.map((r) => r.sourceReviewId);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Star-only reviews come through with null text for the normalizer to handle.
+    expect(parsed.reviews.some((r) => r.text !== null)).toBe(true);
+  });
+
   it('treats a page without a reviews array as an empty page', () => {
     expect(parseReviewsPage({ search_metadata: { status: 'Success' } })).toMatchObject({
       kind: 'page',
