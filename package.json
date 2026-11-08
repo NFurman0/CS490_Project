@@ -14,11 +14,16 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "db:up": "docker compose up -d db",
-    "db:down": "docker compose down"
+    "typecheck": "npm run db:generate && npm run typecheck --workspaces --if-present",
+    "test": "npm run db:generate && npm run test --workspaces --if-present",
+    "build": "npm run db:generate && npm run build --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace apps/api",
+    "db:migrate": "npm run db:migrate --workspace apps/api",
+    "db:up": "docker compose up -d --wait db && npm run db:migrate",
+    "db:down": "docker compose down",
+    "db:migrate:test": "npm run db:migrate:test --workspace apps/api",
+    "db:test:up": "docker compose --profile test up -d --wait db-test && npm run db:migrate:test",
+    "db:test:down": "docker compose stop db-test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -28,6 +33,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "prettier": "^3.9.10",
+    "prisma": "^6.19.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.1.0"
