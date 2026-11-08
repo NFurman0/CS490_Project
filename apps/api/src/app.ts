@@ -2,6 +2,7 @@ import cors from 'cors';
 import express, { Router, type Express } from 'express';
 import type { IdentityProvider } from './lib/identity.js';
 import type { Logger } from './lib/logger.js';
+import type { ReviewSource } from './modules/ingestion/review-source.js';
 import { createErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { requestId } from './middleware/request-id.js';
 import { requireUser } from './middleware/require-user.js';
@@ -12,6 +13,8 @@ export interface AppDependencies {
   logger: Logger;
   webOrigin: string;
   identity: IdentityProvider;
+  /** Where ingestion gets reviews from (SerpApi in production, a fake in tests). Used from S1-019. */
+  reviewSource?: ReviewSource;
   /** Extra protected routers mounted under /api. Feature routers are added here as stories land. */
   extraRouters?: { path: string; router: Router }[];
 }
