@@ -4,10 +4,12 @@
  *
  *   npm run record:fixture -w apps/api -- "<google maps place url>" reviews-page-1.json
  *
- * Reads SERPAPI_API_KEY from apps/api/.env. Prints counts only, never the key or request URL.
+ * Reads configuration from apps/api/.env through the same validation as the server
+ * (src/config/env.ts). Prints counts only, never the key or request URL.
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { ConfigError, loadEnv } from '../src/config/env.js';
 import { resolvePlaceRef } from '../src/adapters/serpapi/place-url.js';
 import { SERPAPI_SEARCH_URL } from '../src/adapters/serpapi/serpapi.client.js';
 import { parseReviewsPage } from '../src/adapters/serpapi/serpapi.parser.js';
@@ -55,8 +57,15 @@ if (!sourceUrl || !fileName) fail('Usage: record:fixture -- "<google maps place 
 if (!/^[\w.-]+\.json$/.test(fileName)) fail('File name must be a plain name ending in .json');
 
 if (existsSync('.env')) process.loadEnvFile('.env');
-const apiKey = process.env.SERPAPI_API_KEY;
-if (!apiKey || apiKey.includes('replace_me')) fail('Set SERPAPI_API_KEY in apps/api/.env first.');
+function readApiKey(): string {
+  try {
+    return loadEnv(process.env).SERPAPI_API_KEY;
+  } catch (error) {
+    if (error instanceof ConfigError) fail(error.message);
+    throw error;
+  }
+}
+const apiKey = readApiKey();
 
 const ref = await resolvePlaceRef(sourceUrl, { fetchFn: fetch, timeoutMs: 15_000 });
 if (!ref) fail('That URL does not identify a Google Maps place (SOURCE_UNRESOLVABLE).');
