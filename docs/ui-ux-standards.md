@@ -14,9 +14,9 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 
 - Protected pages and actions require authentication; when a session is missing or expired, do not show protected content, and route the user through the established sign-in flow before returning them to their intended destination when supported.
 
-- Buttons related to account settings should always be available in the top right. 
-    - If the user is signed out this means the sign-in button.
-    - If the user is signed in this means a clickable button that opens a pop-up menu with options to visit the account settings or to sign out.
+- Buttons related to account settings should always be available in the top right.
+  - If the user is signed out this means the sign-in button.
+  - If the user is signed in this means a clickable button that opens a pop-up menu with options to visit the account settings or to sign out.
 
 - The account settings page should group related settings into categories with a navigation on the left side. At the bottom this navigation should include a redundant sign-out button.
 
@@ -24,7 +24,7 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 
 ## 2. Page layout:
 
-- Pages should use a consistent shell that has a left side navigation, a banner across the top (including the account buttons in the top right)  and a focused main content area. The sizes of each of these areas should be consistent across every page on the website.
+- Pages should use a consistent shell that has a left side navigation, a banner across the top (including the account buttons in the top right) and a focused main content area. The sizes of each of these areas should be consistent across every page on the website.
 
 - CSS spacing must not use exact pixels, instead using scaling values like % or vw/vh.
 
@@ -88,7 +88,7 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 
 - Settings forms should **not** use a submit button, instead auto-saving every change for small actions and requesting confirmation on dramatic actions like deleting an account.
 
-- Use specific action labels (for example, "Create target" or "Run analysis") instead of vague labels such as "Submit." 
+- Use specific action labels (for example, "Create target" or "Run analysis") instead of vague labels such as "Submit."
 
 - Disable or otherwise guard actions when required input is invalid or a request is already in progress.
 
@@ -98,7 +98,7 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 
 ## 7. Spacing and typography:
 
-- Ordinary text should use a font size of 1em. 
+- Ordinary text should use a font size of 1em.
 
 - All text should use a line height of 1.5 (unitless to scale with font size).
 
@@ -122,4 +122,4 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 
 - Attempt to reuse components for at least the page layout, page headings, forms and fields, buttons, status indicators, spinners, and error messages.
 
-- Extend or reuse established components before introducing a one-off variation. 
+- Extend or reuse established components before introducing a one-off variation.
