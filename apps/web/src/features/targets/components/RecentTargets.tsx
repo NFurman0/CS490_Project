@@ -3,7 +3,11 @@ import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
 import { FALLBACK_MESSAGE } from '../../../lib/errors';
-import { listRecentAnalysisTargets, type AnalysisTargetSummary } from '../api';
+import {
+  ANALYSIS_TARGETS_CHANGED_EVENT,
+  listRecentAnalysisTargets,
+  type AnalysisTargetSummary,
+} from '../api';
 
 export function RecentTargets() {
   const client = useApi();
@@ -12,18 +16,26 @@ export function RecentTargets() {
 
   useEffect(() => {
     let cancelled = false;
-    listRecentAnalysisTargets(client).then(
-      (results) => {
-        if (!cancelled) setTargets(results);
-      },
-      (error: unknown) => {
-        if (!cancelled) {
+    let requestId = 0;
+    const loadTargets = () => {
+      const currentRequestId = ++requestId;
+      setErrorMessage(null);
+      listRecentAnalysisTargets(client).then(
+        (results) => {
+          if (!cancelled && currentRequestId === requestId) setTargets(results);
+        },
+        (error: unknown) => {
+          if (cancelled || currentRequestId !== requestId) return;
           setErrorMessage(error instanceof ApiError ? error.message : FALLBACK_MESSAGE);
-        }
-      },
-    );
+        },
+      );
+    };
+
+    loadTargets();
+    window.addEventListener(ANALYSIS_TARGETS_CHANGED_EVENT, loadTargets);
     return () => {
       cancelled = true;
+      window.removeEventListener(ANALYSIS_TARGETS_CHANGED_EVENT, loadTargets);
     };
   }, [client]);
 

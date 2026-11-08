@@ -1,6 +1,8 @@
 import type { CreateAnalysisTargetInput } from '@reviewlens/shared';
 import type { ApiClient } from '../../lib/api-client';
 
+export const ANALYSIS_TARGETS_CHANGED_EVENT = 'reviewlens:analysis-targets-changed';
+
 export interface AnalysisTargetSummary {
   id: string;
   name: string;

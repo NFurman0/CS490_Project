@@ -8,7 +8,11 @@ import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
 import { FALLBACK_MESSAGE } from '../../../lib/errors';
-import { createAnalysisTarget, type CreatedAnalysisTarget } from '../api';
+import {
+  ANALYSIS_TARGETS_CHANGED_EVENT,
+  createAnalysisTarget,
+  type CreatedAnalysisTarget,
+} from '../api';
 
 type FieldName = 'name' | 'sourceUrl';
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -57,6 +61,7 @@ export function CreateTargetPage() {
     try {
       const target = await createAnalysisTarget(client, parsed.data);
       setCreatedTarget(target);
+      window.dispatchEvent(new Event(ANALYSIS_TARGETS_CHANGED_EVENT));
       setName('');
       setSourceUrl('');
       setFieldErrors({});
