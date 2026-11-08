@@ -1,10 +1,9 @@
-import type { Router } from 'express';
 import { randomUUID } from 'node:crypto';
+import type { Router } from 'express';
 import { createApp } from '../../src/app.js';
-import type { IdentityProvider } from '../../src/lib/identity.js';
+import type { IdentityProvider, UserDirectory } from '../../src/lib/identity.js';
 import { createLogger } from '../../src/lib/logger.js';
 import type { ReviewSource } from '../../src/modules/ingestion/review-source.js';
-import type { UsersRepository } from '../../src/modules/users/users.repository.js';
 
 /**
  * A fake identity provider that always resolves to the given Clerk user, or to
@@ -18,41 +17,47 @@ export function fakeIdentityProvider(clerkUserId: string | null): IdentityProvid
   };
 }
 
+/**
+ * An in-memory user directory: each Clerk user gets a stable internal ID for the
+ * life of the directory. Tests that need the real users table pass the Prisma
+ * repository instead.
+ */
+export function fakeUserDirectory(): UserDirectory {
+  const ids = new Map<string, string>();
+  return {
+    findOrCreate: async (clerkUserId) => {
+      let id = ids.get(clerkUserId);
+      if (!id) {
+        id = randomUUID();
+        ids.set(clerkUserId, id);
+      }
+      return { id };
+    },
+  };
+}
+
 export interface TestAppOptions {
   /** Clerk user the app treats every request as coming from; `null` means signed out. */
   as?: string | null;
+  /** Maps Clerk users to internal users. Defaults to an in-memory fake (no database). */
+  users?: UserDirectory;
   extraRouters?: { path: string; router: Router }[];
-  usersRepository?: UsersRepository;
   reviewSource?: ReviewSource;
 }
 
 /** Builds the app for tests with a silent logger and an injected identity. */
 export function createTestApp({
   as = 'user_test',
+  users = fakeUserDirectory(),
   extraRouters = [],
-  usersRepository = createFakeUsersRepository(),
   reviewSource,
 }: TestAppOptions = {}) {
   return createApp({
     logger: createLogger('silent'),
     webOrigin: 'http://localhost:5173',
     identity: fakeIdentityProvider(as),
-    usersRepository,
+    users,
     reviewSource,
     extraRouters,
   });
-}
-
-function createFakeUsersRepository(): UsersRepository {
-  const idsByClerkUserId = new Map<string, string>();
-  return {
-    async findOrCreateByClerkUserId(clerkUserId) {
-      let id = idsByClerkUserId.get(clerkUserId);
-      if (!id) {
-        id = randomUUID();
-        idsByClerkUserId.set(clerkUserId, id);
-      }
-      return { id };
-    },
-  };
 }

@@ -7,5 +7,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    // Database tests share one test database and reset it between tests, so test
+    // files run one at a time to keep them from deleting each other's rows.
+    fileParallelism: false,
   },
 });

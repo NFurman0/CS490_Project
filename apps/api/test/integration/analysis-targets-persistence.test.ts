@@ -28,7 +28,7 @@ const prisma = new PrismaClient({
   },
 });
 const targetsRepository = createTargetsRepository(prisma);
-const usersRepository = createUsersRepository(prisma);
+const users = createUsersRepository(prisma);
 
 const validTargetInput = {
   name: "Joe's Pizza",
@@ -47,7 +47,7 @@ function createTargetsApp({
   const service = createTargetsService({ repository: targetsRepository, validateSourceUrl });
   return createTestApp({
     as,
-    usersRepository,
+    users,
     reviewSource: { fetchReviews },
     extraRouters: [{ path: '/analysis-targets', router: createTargetsRouter(service) }],
   });

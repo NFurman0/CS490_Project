@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs';
-import { PrismaClient } from '@prisma/client';
 import { createClerkIdentityProvider } from './adapters/clerk/clerk-identity-provider.js';
 import {
   DEFAULT_SOURCE_RESOLUTION_TIMEOUT_MS,
@@ -9,6 +8,7 @@ import { createSerpApiReviewSource } from './adapters/serpapi/serpapi-review-sou
 import { createApp } from './app.js';
 import { ConfigError, loadEnv, type Env } from './config/env.js';
 import { createLogger } from './lib/logger.js';
+import { createPrismaClient } from './lib/prisma.js';
 import { createTargetsRouter } from './modules/targets/targets.routes.js';
 import { createTargetsRepository } from './modules/targets/targets.repository.js';
 import { createTargetsService } from './modules/targets/targets.service.js';
@@ -30,15 +30,15 @@ function readConfig(): Env {
 
 const env = readConfig();
 const logger = createLogger(env.LOG_LEVEL);
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(env.DATABASE_URL);
 const identity = createClerkIdentityProvider({
   secretKey: env.CLERK_SECRET_KEY,
   publishableKey: env.CLERK_PUBLISHABLE_KEY,
   authorizedParties: [env.WEB_ORIGIN],
   logger,
 });
+const users = createUsersRepository(prisma);
 const reviewSource = createSerpApiReviewSource({ apiKey: env.SERPAPI_API_KEY, logger });
-const usersRepository = createUsersRepository(prisma);
 const targetsRepository = createTargetsRepository(prisma);
 const targetsService = createTargetsService({
   repository: targetsRepository,
@@ -53,11 +53,20 @@ const app = createApp({
   logger,
   webOrigin: env.WEB_ORIGIN,
   identity,
-  usersRepository,
+  users,
   reviewSource,
   extraRouters: [{ path: '/analysis-targets', router: targetsRouter }],
 });
 
-app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'ReviewLens API listening');
 });
+
+// Close the HTTP server and database connections cleanly on Ctrl+C or a restart.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    server.close(() => {
+      void prisma.$disconnect().finally(() => process.exit(0));
+    });
+  });
+}
