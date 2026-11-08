@@ -56,6 +56,8 @@ function createTargetsApp({
 describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
   let ownerAId: string;
   let ownerBId: string;
+  let ownerAClerkUserId: string;
+  let ownerBClerkUserId: string;
 
   beforeAll(async () => {
     await prisma.$connect();
@@ -64,9 +66,11 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
   beforeEach(async () => {
     await prisma.analysisTarget.deleteMany();
     await prisma.user.deleteMany();
+    ownerAClerkUserId = `clerk-${randomUUID()}`;
+    ownerBClerkUserId = `clerk-${randomUUID()}`;
     const [ownerA, ownerB] = await Promise.all([
-      prisma.user.create({ data: { clerkUserId: `clerk-${randomUUID()}` } }),
-      prisma.user.create({ data: { clerkUserId: `clerk-${randomUUID()}` } }),
+      prisma.user.create({ data: { clerkUserId: ownerAClerkUserId } }),
+      prisma.user.create({ data: { clerkUserId: ownerBClerkUserId } }),
     ]);
     ownerAId = ownerA.id;
     ownerBId = ownerB.id;
@@ -93,6 +97,114 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
     });
     await expect(targetsRepository.findById(ownerBId, target.id)).resolves.toBeNull();
     expect(await prisma.analysisTarget.count()).toBe(1);
+  });
+
+  it('lists only each authenticated owner’s targets in newest-created order', async () => {
+    const olderTarget = await prisma.analysisTarget.create({
+      data: {
+        ownerId: ownerAId,
+        name: 'A older target',
+        platform: ReviewPlatform.GOOGLE_MAPS,
+        sourceUrl: 'https://maps.google.com/?cid=101',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    });
+    const newerTarget = await prisma.analysisTarget.create({
+      data: {
+        ownerId: ownerAId,
+        name: 'A newer target',
+        platform: ReviewPlatform.GOOGLE_MAPS,
+        sourceUrl: 'https://maps.google.com/?cid=102',
+        createdAt: new Date('2026-01-02T00:00:00.000Z'),
+      },
+    });
+    const userBTarget = await prisma.analysisTarget.create({
+      data: {
+        ownerId: ownerBId,
+        name: 'B private target',
+        platform: ReviewPlatform.GOOGLE_MAPS,
+        sourceUrl: 'https://maps.google.com/?cid=201',
+      },
+    });
+
+    const userAResponse = await request(
+      createTargetsApp({
+        as: ownerAClerkUserId,
+        validateSourceUrl: vi.fn(async () => true),
+      }),
+    ).get('/api/analysis-targets');
+    const userBResponse = await request(
+      createTargetsApp({
+        as: ownerBClerkUserId,
+        validateSourceUrl: vi.fn(async () => true),
+      }),
+    ).get(`/api/analysis-targets?ownerId=${ownerAId}`);
+
+    expect(userAResponse.status).toBe(200);
+    expect(userAResponse.body.data.map((target: { id: string }) => target.id)).toEqual([
+      newerTarget.id,
+      olderTarget.id,
+    ]);
+    expect(userAResponse.body.data[0]).toMatchObject({
+      name: 'A newer target',
+      platform: 'google_maps',
+      sourceUrl: 'https://maps.google.com/?cid=102',
+    });
+    expect(userAResponse.body.data.every((target: { ownerId?: string }) => !target.ownerId)).toBe(
+      true,
+    );
+
+    expect(userBResponse.status).toBe(200);
+    expect(userBResponse.body.data).toHaveLength(1);
+    expect(userBResponse.body.data[0]).toMatchObject({
+      id: userBTarget.id,
+      name: 'B private target',
+    });
+    expect(JSON.stringify(userBResponse.body)).not.toContain('A older target');
+    expect(JSON.stringify(userBResponse.body)).not.toContain('A newer target');
+    expect(await prisma.analysisTarget.count()).toBe(3);
+  });
+
+  it('limits the recent-target endpoint to five of the owner’s newest targets', async () => {
+    const targets = await Promise.all(
+      Array.from({ length: 6 }, (_, index) =>
+        prisma.analysisTarget.create({
+          data: {
+            ownerId: ownerAId,
+            name: `Target ${index + 1}`,
+            platform: ReviewPlatform.GOOGLE_MAPS,
+            sourceUrl: `https://maps.google.com/?cid=${index + 1}`,
+            createdAt: new Date(`2026-01-0${index + 1}T00:00:00.000Z`),
+          },
+        }),
+      ),
+    );
+
+    const response = await request(
+      createTargetsApp({
+        as: ownerAClerkUserId,
+        validateSourceUrl: vi.fn(async () => true),
+      }),
+    ).get('/api/analysis-targets/recent');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map((target: { id: string }) => target.id)).toEqual(
+      targets
+        .slice(1)
+        .reverse()
+        .map((target) => target.id),
+    );
+    expect(response.body.data).toHaveLength(5);
+  });
+
+  it('requires authentication to list targets', async () => {
+    const response = await request(
+      createTargetsApp({ as: null, validateSourceUrl: vi.fn(async () => true) }),
+    ).get('/api/analysis-targets');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHENTICATED');
+    expect(response.body).not.toHaveProperty('data');
   });
 
   it('rejects empty required values and a target with no valid owner', async () => {

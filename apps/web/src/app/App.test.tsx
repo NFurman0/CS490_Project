@@ -29,9 +29,14 @@ function CurrentLocation() {
 }
 
 function renderAt(path: string) {
-  const fetchMock = vi.fn(
-    async () => new Response(JSON.stringify({ data: { authenticated: true } }), { status: 200 }),
-  );
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const pathname = new URL(String(input)).pathname;
+    const data =
+      pathname.endsWith('/analysis-targets') || pathname.endsWith('/analysis-targets/recent')
+        ? []
+        : { authenticated: true };
+    return new Response(JSON.stringify({ data }), { status: 200 });
+  });
   vi.stubGlobal('fetch', fetchMock);
   const view = render(
     <MemoryRouter initialEntries={[path]}>
@@ -80,11 +85,20 @@ describe('protected pages', () => {
       'href',
       '/analysis-targets/new',
     );
-    expect(
-      await screen.findByText('You’re signed in and connected to ReviewLens.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('You haven’t created any targets yet.')).toBeInTheDocument();
+    expect(await screen.findByText('Your targets will appear here.')).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer session-token');
+  });
+
+  it('places the secondary view-all action before create target in the signed-in sidebar', () => {
+    clerk.isSignedIn = true;
+    renderAt('/analysis-targets');
+
+    const viewAll = screen.getByRole('link', { name: 'View all' });
+    const create = screen.getByRole('link', { name: /Create Target/ });
+    expect(viewAll.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(viewAll).toHaveClass('button-secondary');
   });
 
   it('shows the create-target form to a signed-in user', () => {
@@ -98,7 +112,7 @@ describe('protected pages', () => {
   it('removes protected content and redirects as soon as the user signs out', async () => {
     clerk.isSignedIn = true;
     const { rerender } = renderAt('/analysis-targets');
-    await screen.findByText('You’re signed in and connected to ReviewLens.');
+    await screen.findByText('You haven’t created any targets yet.');
 
     clerk.isSignedIn = false;
     rerender(
@@ -162,8 +176,11 @@ describe('errors', () => {
       </MemoryRouter>,
     );
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Your session has ended. Sign in again to continue.');
-    expect(alert).not.toHaveTextContent('azp');
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts).toHaveLength(2);
+    for (const alert of alerts) {
+      expect(alert).toHaveTextContent('Your session has ended. Sign in again to continue.');
+      expect(alert).not.toHaveTextContent('azp');
+    }
   });
 });

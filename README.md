@@ -92,7 +92,7 @@ All commands run from the repository root. CI runs the same commands on every pu
 | `npm run db:test:up`   | Start the isolated PostgreSQL test database |
 | `npm run db:test:down` | Stop the isolated test database             |
 
-Run `lint`, `format:check`, `typecheck`, `test`, and `build` before opening a PR.
+Run `lint`, `format:check`, `typecheck`, `db:test:up`, `test`, `db:test:down`, and `build` before opening a PR.
 
 ## Environment configuration
 

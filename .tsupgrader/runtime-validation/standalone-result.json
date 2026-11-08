@@ -1,0 +1,134 @@
+{
+  "planHash": "9fe80cc468c0d7ebfceeddf6db37807113a5f1202ee35dbfd14b746b8d8e3c90",
+  "phase": "standalone",
+  "recordedAtUtc": "2026-11-08T18:32:25.8936610Z",
+  "retryCount": 0,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 77618,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "typecheck",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E typecheck\r\n\u003E npm run db:generate \u0026\u0026 npm run typecheck --workspaces --if-present\r\n\r\n\r\n\u003E db:generate\r\n\u003E npm run db:generate --workspace apps/api\r\n\r\n\r\n\u003E @reviewlens/api@0.0.0 db:generate\r\n\u003E prisma generate --schema prisma/schema.prisma\r\n\r\nEnvironment variables loaded from .env\r\nPrisma schema loaded from prisma\\schema.prisma\r\n\r\n\u2714 Generated Prisma Client (v6.19.3) to .\\..\\..\\node_modules\\@prisma\\client in 59ms\r\n\r\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\r\n\r\nTip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints\r\n\r\n\r\n\u003E @reviewlens/shared@0.0.0 typecheck\r\n\u003E tsc --noEmit\r\n\r\n\r\n\u003E @reviewlens/api@0.0.0 typecheck\r\n\u003E tsc --noEmit\r\n\r\n\r\n\u003E @reviewlens/web@0.0.0 typecheck\r\n\u003E tsc --noEmit\r\n\r\n",
+        "durationMs": 7687
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E test\r\n\u003E npm run db:generate \u0026\u0026 npm run test --workspaces --if-present\r\n\r\n\r\n\u003E db:generate\r\n\u003E npm run db:generate --workspace apps/api\r\n\r\n\r\n\u003E @reviewlens/api@0.0.0 db:generate\r\n\u003E prisma generate --schema prisma/schema.prisma\r\n\r\nEnvironment variables loaded from .env\r\nPrisma schema loaded from prisma\\schema.prisma\r\n\r\n\u2714 Generated Prisma Client (v6.19.3) to .\\..\\..\\node_modules\\@prisma\\client in 51ms\r\n\r\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\r\n\r\nTip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate\r\n\r\n\r\n\u003E @reviewlens/shared@0.0.0 test\r\n\u003E vitest run\r\n\r\n\r\n RUN  v5.1.0 C:/Users/thepu/Desktop/CS490/CS490_Project/packages/shared\r\n\r\n\r\n Test Files  3 passed (3)\r\n      Tests  12 passed (12)\r\n   Start at  13:32:11\r\n   Duration  336ms (import 72%, transform 21%, tests 4%, worker 3%)\r\n\r\n\r\n\u003E @reviewlens/api@0.0.0 test\r\n\u003E vitest run\r\n\r\n\r\n RUN  v5.1.0 C:/Users/thepu/Desktop/CS490/CS490_Project/apps/api\r\n\r\n\r\n Test Files  9 passed (9)\r\n      Tests  88 passed (88)\r\n   Start at  13:32:12\r\n   Duration  1.52s (import 67%, transform 17%, tests 14%, worker 2%)\r\n\r\n\r\n\u003E @reviewlens/web@0.0.0 test\r\n\u003E vitest run\r\n\r\n\r\n RUN  v5.1.0 C:/Users/thepu/Desktop/CS490/CS490_Project/apps/web\r\n\r\n\r\n Test Files  9 passed (9)\r\n      Tests  46 passed (46)\r\n   Start at  13:32:14\r\n   Duration  4.66s (environment 67%, setup 15%, import 9%, tests 5%, transform 5%)\r\n\r\n",
+        "durationMs": 10560,
+        "testResults": {
+          "testFramework": "vitest",
+          "runnerDetectedFrom": "package_json",
+          "testsTotal": 46,
+          "testsPassed": 46,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": false
+        }
+      },
+      {
+        "name": "production-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E build\r\n\u003E npm run db:generate \u0026\u0026 npm run build --workspaces --if-present\r\n\r\n\r\n\u003E db:generate\r\n\u003E npm run db:generate --workspace apps/api\r\n\r\n\r\n\u003E @reviewlens/api@0.0.0 db:generate\r\n\u003E prisma generate --schema prisma/schema.prisma\r\n\r\nEnvironment variables loaded from .env\r\nPrisma schema loaded from prisma\\schema.prisma\r\n\r\n\u2714 Generated Prisma Client (v6.19.3) to .\\..\\..\\node_modules\\@prisma\\client in 54ms\r\n\r\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\r\n\r\nTip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate\r\n\r\n\r\n\u003E @reviewlens/shared@0.0.0 build\r\n\u003E tsc -p tsconfig.build.json\r\n\r\n\r\n\u003E @reviewlens/api@0.0.0 build\r\n\u003E tsc -p tsconfig.build.json\r\n\r\n\r\n\u003E @reviewlens/web@0.0.0 build\r\n\u003E vite build\r\n\r\n\u001B[36mvite v8.3.6 \u001B[32mbuilding client environment for production...\u001B[36m\u001B[39m\r\ntransforming...\r\n\u2713 278 modules transformed.\r\nrendering chunks...\r\ncomputing gzip size...\r\ndist/index.html                   0.40 kB \u2502 gzip:   0.27 kB\r\ndist/assets/index-VE1hJvCl.css    6.64 kB \u2502 gzip:   1.88 kB\r\ndist/assets/index-BLqSAGH0.js   484.58 kB \u2502 gzip: 143.58 kB\r\n\r\n\u001B[32m\u2713 built in 239ms\u001B[39m\r\n",
+        "durationMs": 5483
+      },
+      {
+        "name": "analysis-targets-route-serves",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": null,
+        "outputSample": "HTTP 200\n\u003C!doctype html\u003E\r\n\u003Chtml lang=\u0022en\u0022\u003E\r\n  \u003Chead\u003E\n    \u003Cscript type=\u0022module\u0022\u003Eimport { injectIntoGlobalHook } from \u0022/@react-refresh\u0022;\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () =\u003E {};\nwindow.$RefreshSig$ = () =\u003E (type) =\u003E type;\u003C/script\u003E\n\n    \u003Cscript type=\u0022module\u0022 src=\u0022/@vite/client\u0022\u003E\u003C/script\u003E\n\r\n    \u003Cmeta charset=\u0022UTF-8\u0022 /\u003E\r\n    \u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1.0\u0022 /\u003E\r\n    \u003Ctitle\u003EReviewLens\u003C/title\u003E\r\n  \u003C/head\u003E\r\n  \u003Cbody\u003E\r\n    \u003Cdiv id=\u0022root\u0022\u003E\u003C/div\u003E\r\n    \u003Cscript type=\u0022module\u0022 src=\u0022/src/main.tsx\u0022\u003E\u003C/script\u003E\r\n  \u003C/body\u003E\r\n\u003C/html\u003E\r\n\n--- server output ---\n\r\n\u003E @reviewlens/web@0.0.0 dev\r\n\u003E vite\r\n\r\n\r\n  \u001B[32m\u001B[1mVITE\u001B[22m v8.3.6\u001B[39m  \u001B[2mready in \u001B[0m\u001B[1m232\u001B[22m\u001B[2m\u001B[0m ms\u001B[22m\r\n\r\n  \u001B[32m\u279C\u001B[39m  \u001B[1mLocal\u001B[22m:   \u001B[36mhttp://localhost:\u001B[1m5173\u001B[22m/\u001B[39m\r\n\u001B[2m  \u001B[32m\u279C\u001B[39m  \u001B[1mNetwork\u001B[22m\u001B[2m: use \u001B[22m\u001B[1m--host\u001B[22m\u001B[2m to expose\u001B[22m\r\n",
+        "durationMs": 1076
+      }
+    ],
+    "executions": [
+      {
+        "source": "setup[0]",
+        "resolvedExecutable": "C:\\Program Files\\npm.CMD",
+        "args": [
+          "ci"
+        ],
+        "cwd": "C:\\Users\\thepu\\Desktop\\CS490\\CS490_Project",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "typecheck",
+        "resolvedExecutable": "C:\\Program Files\\npm.CMD",
+        "args": [
+          "run",
+          "typecheck"
+        ],
+        "cwd": "C:\\Users\\thepu\\Desktop\\CS490\\CS490_Project",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "C:\\Program Files\\npm.CMD",
+        "args": [
+          "test"
+        ],
+        "cwd": "C:\\Users\\thepu\\Desktop\\CS490\\CS490_Project",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "production-build",
+        "resolvedExecutable": "C:\\Program Files\\npm.CMD",
+        "args": [
+          "run",
+          "build"
+        ],
+        "cwd": "C:\\Users\\thepu\\Desktop\\CS490\\CS490_Project",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "analysis-targets-route-serves",
+        "resolvedExecutable": "C:\\Program Files\\npm.CMD",
+        "args": [
+          "run",
+          "dev",
+          "--workspace",
+          "apps/web"
+        ],
+        "cwd": "C:\\Users\\thepu\\Desktop\\CS490\\CS490_Project",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}
