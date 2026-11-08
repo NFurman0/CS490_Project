@@ -8,9 +8,20 @@ export interface VerifiedIdentity {
 
 /**
  * The authenticated caller, set by `requireUser`.
+ * `id` is the internal ReviewLens user ID: the only value ever used as an `ownerId`.
  */
 export interface AuthenticatedUser {
+  id: string;
   clerkUserId: string;
+}
+
+/**
+ * Maps a verified provider identity to the internal user that owns data.
+ * Production uses the users table (modules/users); tests can inject a fake.
+ */
+export interface UserDirectory {
+  /** Returns the internal user for this Clerk user, creating it on first sign-in. */
+  findOrCreate(clerkUserId: string): Promise<{ id: string }>;
 }
 
 /**

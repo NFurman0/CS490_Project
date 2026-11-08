@@ -3,6 +3,8 @@ import { createClerkIdentityProvider } from './adapters/clerk/clerk-identity-pro
 import { createApp } from './app.js';
 import { ConfigError, loadEnv, type Env } from './config/env.js';
 import { createLogger } from './lib/logger.js';
+import { createPrismaClient } from './lib/prisma.js';
+import { createUsersRepository } from './modules/users/users.repository.js';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
@@ -26,8 +28,19 @@ const identity = createClerkIdentityProvider({
   authorizedParties: [env.WEB_ORIGIN],
   logger,
 });
-const app = createApp({ logger, webOrigin: env.WEB_ORIGIN, identity });
+const prisma = createPrismaClient(env.DATABASE_URL);
+const users = createUsersRepository(prisma);
+const app = createApp({ logger, webOrigin: env.WEB_ORIGIN, identity, users });
 
-app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'ReviewLens API listening');
 });
+
+// Close the HTTP server and database connections cleanly on Ctrl+C or a restart.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    server.close(() => {
+      void prisma.$disconnect().finally(() => process.exit(0));
+    });
+  });
+}

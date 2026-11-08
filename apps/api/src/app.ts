@@ -1,6 +1,6 @@
 import cors from 'cors';
 import express, { Router, type Express } from 'express';
-import type { IdentityProvider } from './lib/identity.js';
+import type { IdentityProvider, UserDirectory } from './lib/identity.js';
 import type { Logger } from './lib/logger.js';
 import { createErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { requestId } from './middleware/request-id.js';
@@ -10,6 +10,8 @@ import { sessionRouter } from './modules/session/session.routes.js';
 
 export interface AppDependencies {
   logger: Logger;
+  // Maps verified identities to internal users (the users table in production)
+  users: UserDirectory;
   webOrigin: string;
   identity: IdentityProvider;
   /** Extra protected routers mounted under /api. Feature routers are added here as stories land. */
@@ -21,6 +23,7 @@ export function createApp({
   logger,
   webOrigin,
   identity,
+  users,
   extraRouters = [],
 }: AppDependencies): Express {
   const app = express();
@@ -36,7 +39,7 @@ export function createApp({
   // Protected: everything else under /api requires a verified session.
   const api = Router();
   for (const middleware of identity.middleware) api.use(middleware);
-  api.use(requireUser(identity));
+  api.use(requireUser(identity, users));
   api.use('/session', sessionRouter);
   for (const { path, router } of extraRouters) api.use(path, router);
   app.use('/api', api);
