@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
@@ -56,7 +57,9 @@ export function RecentTargets() {
       {targets && targets.length > 0 && (
         <ul className="recent-target-list">
           {targets.map((target) => (
-            <li key={target.id}>{target.name}</li>
+            <li key={target.id}>
+              <Link to={`/analysis-targets/${target.id}`}>{target.name}</Link>
+            </li>
           ))}
         </ul>
       )}

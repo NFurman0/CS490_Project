@@ -16,7 +16,7 @@ describe('RecentTargets', () => {
     api.post.mockReset();
   });
 
-  it('shows a short, non-clickable list of recent targets', async () => {
+  it('links recent targets to their workspaces', async () => {
     api.get.mockResolvedValue([
       {
         id: 'target-1',
@@ -27,17 +27,27 @@ describe('RecentTargets', () => {
       },
     ]);
 
-    render(<RecentTargets />);
+    render(
+      <MemoryRouter>
+        <RecentTargets />
+      </MemoryRouter>,
+    );
 
-    expect(await screen.findByText('Recent cafe')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Recent cafe' })).toHaveAttribute(
+      'href',
+      '/analysis-targets/target-1',
+    );
     expect(api.get).toHaveBeenCalledWith('/api/analysis-targets/recent');
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('shows an empty state when there are no recent targets', async () => {
     api.get.mockResolvedValue([]);
 
-    render(<RecentTargets />);
+    render(
+      <MemoryRouter>
+        <RecentTargets />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByText('Your targets will appear here.')).toBeInTheDocument();
   });
@@ -54,12 +64,10 @@ describe('RecentTargets', () => {
     api.post.mockResolvedValue(createdTarget);
 
     render(
-      <>
+      <MemoryRouter>
         <RecentTargets />
-        <MemoryRouter>
-          <CreateTargetPage />
-        </MemoryRouter>
-      </>,
+        <CreateTargetPage />
+      </MemoryRouter>,
     );
 
     const recentTargets = screen.getByRole('region', { name: 'Recent targets' });
