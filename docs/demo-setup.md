@@ -128,6 +128,25 @@ After the team supplies the integrated revision, rerun the quality gates above a
 - [ ] Once #21 and #22 are integrated, verify valid normalized text/ratings are actually retrievable after reload, belong to the right target, and remain inaccessible to another account. Verify malformed-record handling and that the reported count matches its stated meaning. A raw or normalized count alone does not pass storage acceptance.
 - [ ] Once storage exists, verify that the three TODOs in #41's `cross-user-authorization.test.ts` have become passing tests: cross-user review retrieval denied, denied ingestion creates no reviews, and Target B retrieval never returns Target A's reviews. Do not count TODO/skipped cases as coverage. Real Clerk/SerpApi configuration and live rehearsal remain separate requirements from CI.
 
+### Local verification: November 9, 2026, 12:10 p.m. Eastern
+
+The pending revisions were checked in a separate, detached checkout on macOS, using Node 26.5.0, the unchanged lockfile, and PostgreSQL 17. Database tests used the dedicated `reviewlens_test` database. No teammate branch or shared `main` was changed.
+
+| Revision                                                       | Existing test results                     | Other checks                                                                  |
+| -------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
+| #43 `89ff5f2`, including #42                                   | 192 passed; no skips or TODOs             | Lint, formatting, typecheck and build passed                                  |
+| #41 `fef5574`, separately                                      | 192 passed; 3 review-storage TODOs remain | Lint, formatting, typecheck and build passed                                  |
+| Temporary local combination of #43 and normalization `549d765` | 221 passed; no skips or TODOs             | Lint, typecheck and build passed; formatting failed in five changed API files |
+
+The temporary combination was not committed or published. Its formatting failures are in `ingestion.service.test.ts`, `review-normalizer.test.ts`, `review-normalizer.ts`, `test/helpers/test-database.ts`, and `test/integration/ingestion.test.ts`. Passing existing tests does not establish full demo readiness:
+
+- A separate component probe reproduced the partial-result issue: render otherwise identical `succeeded` runs first with `errorCode: null`, then with `errorCode: PROVIDER_TIMEOUT`. The visible workspace text is identical. The assertion that the user can distinguish these outcomes fails. This probe is separate from the passing existing-test counts above; the workspace needs a partial-result warning.
+- A read-only merge simulation between #43 and #41 found conflicts in `ingestion.routes.ts`, `ingestion.service.ts`, `targets.service.ts`, and `targets.service.test.ts`. The feature owners must preserve both the shared ownership checks and the new endpoints when reconciling them. No combined #41/#43 build has passed.
+- None of the inspected revisions persists actual `Review` records. #41's three TODOs therefore remain unresolved acceptance checks, and a run count still does not prove storage.
+- The live API startup check stopped at configuration validation because the local Clerk and SerpApi values are placeholders. The web configuration screen loads, but real sign-in, two-account isolation, and live ingestion remain blocked. Use valid matching team development configuration before attempting the live rehearsal.
+
+These results supplement the earlier snapshot; they do not approve or merge a feature PR. Recheck the revision and rerun affected checks after the owners update their branches.
+
 ## Repeat or recover safely
 
 - Reuse the separate browser profiles and existing rehearsal targets when appropriate. Creating or ingesting again can add records or spend more provider searches.
