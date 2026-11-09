@@ -297,6 +297,7 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
     const app = createTargetsApp({ as: 'clerk-invalid-body', validateSourceUrl });
     const cases = [
       { body: { ...validTargetInput, name: ' ' }, field: 'name' },
+      { body: { ...validTargetInput, sourceUrl: '' }, field: 'sourceUrl' },
       { body: { ...validTargetInput, sourceUrl: 'not-a-url' }, field: 'sourceUrl' },
       { body: { ...validTargetInput, ownerId: ownerAId }, field: 'ownerId' },
     ];

@@ -29,6 +29,7 @@ describe('createAnalysisTargetSchema', () => {
       },
       'name',
     ],
+    [{ name: 'Place', sourceUrl: '' }, 'sourceUrl'],
     [{ name: 'Place', sourceUrl: 'not a URL' }, 'sourceUrl'],
     [{ name: 'Place', sourceUrl: 'javascript:alert(1)' }, 'sourceUrl'],
   ])('rejects invalid input %#', (input, field) => {
