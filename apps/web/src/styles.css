@@ -76,6 +76,20 @@ body {
   border-right: 1px solid var(--color-border);
 }
 
+.sidebar-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.sidebar-actions > .button {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 0.5em;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.875em;
+}
+
 .create-target-link {
   display: flex;
   align-items: center;
@@ -117,9 +131,85 @@ body {
   border-color: var(--color-primary-hover);
 }
 
+.button-secondary {
+  border-color: #6c757d;
+  background: #6c757d;
+  color: #ffffff;
+}
+
+.button-secondary:hover {
+  border-color: #5a6268;
+  background: #5a6268;
+}
+
 .button:focus-visible {
   outline: 0.1875em solid var(--color-primary);
   outline-offset: 0.125em;
+}
+
+.sidebar-section-heading {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 1em;
+}
+
+.recent-target-list {
+  display: grid;
+  gap: 0.25em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-target-list li {
+  overflow-wrap: anywhere;
+  padding: 0.4em 0.5em;
+  border-radius: 0.375em;
+  color: var(--color-text);
+}
+
+.sidebar-message {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+.target-list {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 75ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.target-list-item {
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 0.625em;
+  background: var(--color-surface);
+}
+
+.target-list-item h2 {
+  margin: 0 0 var(--space-1);
+  font-size: 1.15em;
+}
+
+.target-list-item p {
+  margin: 0.25em 0;
+  overflow-wrap: anywhere;
+}
+
+.target-list-item a {
+  color: var(--color-primary);
+}
+
+.target-list-empty {
+  padding: var(--space-2);
+  border: 1px dashed var(--color-border);
+  border-radius: 0.625em;
+  background: var(--color-surface);
 }
 
 .status-success {
@@ -355,6 +445,10 @@ body {
 @media (max-width: 48rem) {
   .shell-body-with-sidebar {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar-actions {
+    max-width: 25rem;
   }
 
   .shell-sidebar {

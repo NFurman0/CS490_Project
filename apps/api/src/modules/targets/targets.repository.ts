@@ -24,5 +24,13 @@ export function createTargetsRepository(prisma: Pick<PrismaClient, 'analysisTarg
         where: { id: targetId, ownerId },
       });
     },
+
+    findMany(ownerId: string, take?: number) {
+      return prisma.analysisTarget.findMany({
+        where: { ownerId },
+        orderBy: { createdAt: 'desc' },
+        ...(take === undefined ? {} : { take }),
+      });
+    },
   };
 }

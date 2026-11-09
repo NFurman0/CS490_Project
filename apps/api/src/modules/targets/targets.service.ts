@@ -5,7 +5,10 @@ import type { NewAnalysisTarget } from './targets.repository.js';
 
 export interface TargetsRepository {
   create(ownerId: string, target: NewAnalysisTarget): Promise<AnalysisTarget>;
+  findMany(ownerId: string, take?: number): Promise<AnalysisTarget[]>;
 }
+
+const RECENT_TARGET_LIMIT = 5;
 
 export interface CreateTargetsServiceOptions {
   repository: TargetsRepository;
@@ -29,6 +32,14 @@ export function createTargetsService({
         platform: ReviewPlatform.GOOGLE_MAPS,
         sourceUrl: target.sourceUrl,
       });
+    },
+
+    list(ownerId: string) {
+      return repository.findMany(ownerId);
+    },
+
+    listRecent(ownerId: string) {
+      return repository.findMany(ownerId, RECENT_TARGET_LIMIT);
     },
   };
 }

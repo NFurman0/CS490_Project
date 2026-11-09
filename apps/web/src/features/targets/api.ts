@@ -1,7 +1,9 @@
 import type { CreateAnalysisTargetInput } from '@reviewlens/shared';
 import type { ApiClient } from '../../lib/api-client';
 
-export interface CreatedAnalysisTarget {
+export const ANALYSIS_TARGETS_CHANGED_EVENT = 'reviewlens:analysis-targets-changed';
+
+export interface AnalysisTargetSummary {
   id: string;
   name: string;
   platform: 'google_maps';
@@ -9,9 +11,19 @@ export interface CreatedAnalysisTarget {
   createdAt: string;
 }
 
+export type CreatedAnalysisTarget = AnalysisTargetSummary;
+
 export function createAnalysisTarget(
   client: ApiClient,
   input: CreateAnalysisTargetInput,
-): Promise<CreatedAnalysisTarget> {
+): Promise<AnalysisTargetSummary> {
   return client.post('/api/analysis-targets', input);
+}
+
+export function listAnalysisTargets(client: ApiClient): Promise<AnalysisTargetSummary[]> {
+  return client.get('/api/analysis-targets');
+}
+
+export function listRecentAnalysisTargets(client: ApiClient): Promise<AnalysisTargetSummary[]> {
+  return client.get('/api/analysis-targets/recent');
 }

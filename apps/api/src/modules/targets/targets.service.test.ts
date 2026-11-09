@@ -20,6 +20,7 @@ function createService(validateSourceUrl: (sourceUrl: string) => Promise<boolean
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
       }),
     ),
+    findMany: vi.fn(async () => []),
   };
   return { service: createTargetsService({ repository, validateSourceUrl }), repository };
 }
@@ -46,5 +47,15 @@ describe('createTargetsService', () => {
       details: { fieldErrors: { sourceUrl: ['Enter a Google Maps place or share link.'] } },
     });
     expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  it('scopes recent and full-list queries to the authenticated owner', async () => {
+    const { service, repository } = createService(async () => true);
+
+    await service.list('owner-a');
+    await service.listRecent('owner-b');
+
+    expect(repository.findMany).toHaveBeenNthCalledWith(1, 'owner-a');
+    expect(repository.findMany).toHaveBeenNthCalledWith(2, 'owner-b', 5);
   });
 });

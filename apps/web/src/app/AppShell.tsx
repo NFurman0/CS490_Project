@@ -1,6 +1,7 @@
 import { Show, useAuth } from '@clerk/react';
 import { Link, Outlet } from 'react-router';
 import { AccountControls } from '../features/auth/components/AccountControls';
+import { RecentTargets } from '../features/targets/components/RecentTargets';
 
 /**
  * The shell every page shares: a top banner with the account controls on the
@@ -23,10 +24,19 @@ export function AppShell() {
         <Show when="signed-in">
           <aside className="shell-sidebar">
             <nav aria-label="Analysis targets">
-              <Link to="/analysis-targets/new" className="button button-primary create-target-link">
-                <span aria-hidden="true">＋</span>
-                Create Target
-              </Link>
+              <div className="sidebar-actions">
+                <Link to="/analysis-targets" className="button button-secondary">
+                  View all
+                </Link>
+                <Link
+                  to="/analysis-targets/new"
+                  className="button button-primary create-target-link"
+                >
+                  <span aria-hidden="true">＋</span>
+                  Create Target
+                </Link>
+              </div>
+              <RecentTargets />
             </nav>
           </aside>
         </Show>

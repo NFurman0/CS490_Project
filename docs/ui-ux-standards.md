@@ -28,7 +28,7 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 
 - CSS spacing must not use exact pixels, instead using scaling values like % or vw/vh.
 
-- The AnalysisTarget list should show the user entered name of each target, and should be sorted chronologically with the most recently accessed targets at the top.
+- The AnalysisTarget list should show the user-entered name of each target and be sorted chronologically with the most recently accessed targets at the top. Until target workspace access tracking is implemented, use most recently created as the temporary ordering.
 
 - All pages must be designed to keep necessary functionality visible on small monitors.
 
@@ -111,6 +111,7 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 - Use #000000 (black) as the primary text color.
 
 - Use #1B56FD as the primary color for buttons and #184bd9 for the on-hover color.
+- Use RGB(108, 117, 125) (#6C757D) as the background color for secondary buttons, with white text. On hover, use RGB(90, 98, 104) (#5A6268).
 
 - Account for text wrapping on smaller monitors.
 
