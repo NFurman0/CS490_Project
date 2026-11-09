@@ -3,6 +3,8 @@ import { normalizeReviews } from './review-normalizer.js';
 import type { RawReview } from './review-source.js';
 
 function rawReview(overrides: Partial<RawReview> = {}): RawReview {
+  // Start from a valid source record so each test changes only the condition
+  // it is checking (for example, null text versus an out-of-range rating).
   return {
     sourceReviewId: null,
     text: 'A helpful review',
@@ -59,6 +61,7 @@ describe('normalizeReviews', () => {
     expect(normalizeReviews([rawReview({ rating: 5.1 })])).toEqual(noReviews);
   });
 
+  // The endpoints prove the range is inclusive; 4.5 catches accidental rounding.
   it.each([1, 5, 4.5])('accepts rating %s unchanged', (rating) => {
     expect(normalizeReviews([rawReview({ rating })])).toMatchObject({
       ok: true,
@@ -84,6 +87,8 @@ describe('normalizeReviews', () => {
   });
 
   it('preserves usable optional fields and source metadata', () => {
+    // A nested metadata value matters here: the contract retains provider
+    // details even though NormalizedReview itself has no provider-specific type.
     const metadata = { likes: 3, ownerResponse: { text: 'Thank you!' } };
     expect(
       normalizeReviews([
@@ -126,6 +131,7 @@ describe('normalizeReviews', () => {
   });
 
   it('keeps valid neighbors in source order when one record is invalid', () => {
+    // Filtering must not discard an entire page or reorder surviving records.
     expect(
       normalizeReviews([
         rawReview({ text: 'First', rating: 4.5 }),
@@ -146,6 +152,8 @@ describe('normalizeReviews', () => {
   });
 
   it('does not mutate raw reviews or their metadata while normalizing', () => {
+    // A new top-level metadata object is expected; nested values need not be
+    // deep-copied, but the source review must stay unchanged.
     const metadata = { likes: 2, ownerResponse: { text: 'Thanks!' } };
     const raw = rawReview({ text: '  Great!  ', metadata });
     const result = normalizeReviews([raw]);

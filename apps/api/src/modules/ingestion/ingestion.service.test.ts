@@ -119,6 +119,8 @@ describe('startIngestion', () => {
   });
 
   it('records a succeeded run with the number of usable normalized reviews', async () => {
+    // Three fetched records, one invalid: this catches the old raw-array count.
+    // The fractional rating on the last record must still count as valid.
     const { service, runs } = setup({
       result: {
         ok: true,
@@ -140,6 +142,7 @@ describe('startIngestion', () => {
   });
 
   it('fails with SOURCE_NO_REVIEWS when every returned record is unusable', async () => {
+    // `result.ok` says SerpApi fetched a page, not that any Review is usable.
     const { service, runs } = setup({
       result: {
         ok: true,
@@ -160,6 +163,7 @@ describe('startIngestion', () => {
   });
 
   it('reports SOURCE_NO_REVIEWS instead of a paging error if no collected review is usable', async () => {
+    // The partial-page code cannot imply success when zero reviews survive.
     const { service } = setup({
       result: {
         ok: true,

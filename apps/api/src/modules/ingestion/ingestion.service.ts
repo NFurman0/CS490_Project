@@ -62,9 +62,14 @@ export function createIngestionService({
         });
 
         if (result.ok) {
+          // `ok` here means the source returned RawReview records, not that
+          // every record has usable text/rating. Make that decision here rather
+          // than in the SerpApi adapter, so other providers follow the same rule.
           const normalized = normalizeReviews(result.reviews);
           // S1-022 will persist normalized.reviews under the owned target. For now,
           // reviewCount measures usable reviews, NOT reviews saved to the database.
+          // A partial page error is meaningful only when at least one usable
+          // review remains; otherwise SOURCE_NO_REVIEWS explains the failed run.
           outcome = normalized.ok
             ? {
                 status: 'SUCCEEDED',
@@ -73,6 +78,8 @@ export function createIngestionService({
               }
             : { status: 'FAILED', errorCode: normalized.errorCode, reviewCount: 0 };
         } else {
+          // A source/provider failure already has its own outcome code. There
+          // are no raw reviews to normalize and the run counts zero reviews.
           outcome = { status: 'FAILED', errorCode: result.errorCode, reviewCount: 0 };
         }
       } catch (error) {

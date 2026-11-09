@@ -9,6 +9,8 @@ import { createUsersRepository } from '../../src/modules/users/users.repository.
 import { createTestApp } from '../helpers/test-app.js';
 import { hasTestDatabase, resetDatabase, testPrisma } from '../helpers/test-database.js';
 
+// Use the shared, guarded test client: this suite deletes data before each
+// case, so its previous stand-alone Prisma client must not bypass the guard.
 const prisma = testPrisma;
 const targetsRepository = createTargetsRepository(prisma);
 const users = createUsersRepository(prisma);

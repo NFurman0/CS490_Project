@@ -106,6 +106,8 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
   });
 
   it('counts only normalized reviews in the recorded run', async () => {
+    // Inspect both the HTTP response and the persisted IngestionRun. No Review
+    // rows exist yet: S1-022 will save them; this tests the recorded count.
     const target = await targetOwnedBy('clerk_a');
     if (!succeeded.ok) throw new Error('expected fixture reviews');
     const { app } = appFor('clerk_a', {
@@ -121,6 +123,8 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
   });
 
   it('records SOURCE_NO_REVIEWS when all fetched reviews fail normalization', async () => {
+    // A valid request still creates a run (HTTP 201), but the run must fail
+    // instead of claiming success merely because the source returned records.
     const target = await targetOwnedBy('clerk_a');
     if (!succeeded.ok) throw new Error('expected fixture reviews');
     const { app } = appFor('clerk_a', {
