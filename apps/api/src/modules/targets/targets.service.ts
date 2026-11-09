@@ -1,9 +1,10 @@
 import { ReviewPlatform, type AnalysisTarget } from '@prisma/client';
 import type { CreateAnalysisTargetInput } from '@reviewlens/shared';
 import { AppError } from '../../lib/errors.js';
+import { getOwnedTargetOrThrow, type OwnedTargetLookup } from './owned-target.js';
 import type { NewAnalysisTarget } from './targets.repository.js';
 
-export interface TargetsRepository {
+export interface TargetsRepository extends OwnedTargetLookup {
   create(ownerId: string, target: NewAnalysisTarget): Promise<AnalysisTarget>;
   findMany(ownerId: string, take?: number): Promise<AnalysisTarget[]>;
 }
@@ -40,6 +41,11 @@ export function createTargetsService({
 
     listRecent(ownerId: string) {
       return repository.findMany(ownerId, RECENT_TARGET_LIMIT);
+    },
+
+    /** The owned target, or `NOT_FOUND`. See owned-target.ts. */
+    getOwnedTargetOrThrow(ownerId: string, targetId: string | undefined) {
+      return getOwnedTargetOrThrow(repository, ownerId, targetId);
     },
   };
 }

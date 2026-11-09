@@ -21,6 +21,7 @@ function createService(validateSourceUrl: (sourceUrl: string) => Promise<boolean
       }),
     ),
     findMany: vi.fn(async () => []),
+    findById: vi.fn(async () => null),
   };
   return { service: createTargetsService({ repository, validateSourceUrl }), repository };
 }
@@ -57,5 +58,15 @@ describe('createTargetsService', () => {
 
     expect(repository.findMany).toHaveBeenNthCalledWith(1, 'owner-a');
     expect(repository.findMany).toHaveBeenNthCalledWith(2, 'owner-b', 5);
+  });
+
+  it('looks up a single target scoped to the authenticated owner', async () => {
+    const { service, repository } = createService(async () => true);
+    const targetId = '22222222-2222-4222-8222-222222222222';
+
+    await expect(service.getOwnedTargetOrThrow('owner-b', targetId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    expect(repository.findById).toHaveBeenCalledWith('owner-b', targetId);
   });
 });

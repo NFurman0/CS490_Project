@@ -1,13 +1,11 @@
-import type { AnalysisTarget, IngestionRun } from '@prisma/client';
+import type { IngestionRun } from '@prisma/client';
 import { AppError } from '../../lib/errors.js';
 import type { Logger } from '../../lib/logger.js';
+import { getOwnedTargetOrThrow, type OwnedTargetLookup } from '../targets/owned-target.js';
 import type { FinishedRun, IngestionRunsRepository } from './ingestion-runs.repository.js';
 import type { ReviewSource } from './review-source.js';
 
-/** The part of the targets repository ingestion needs. `findById` filters by owner. */
-export interface OwnedTargetLookup {
-  findById(ownerId: string, targetId: string): Promise<AnalysisTarget | null>;
-}
+export type { OwnedTargetLookup };
 
 export interface IngestionServiceDependencies {
   targets: OwnedTargetLookup;
@@ -35,12 +33,9 @@ export function createIngestionService({
      * source is called. Source and provider failures are run outcomes, not
      * errors (Engineering Standards §6.4).
      */
-    async startIngestion(ownerId: string, targetId: string): Promise<IngestionRun> {
-      // 1. Ownership first. Missing and not-owned look the same to the caller (§4.4).
-      const target = await targets.findById(ownerId, targetId);
-      if (!target) {
-        throw new AppError('NOT_FOUND', 'Analysis target not found.');
-      }
+    async startIngestion(ownerId: string, targetId: string | undefined): Promise<IngestionRun> {
+      // 1. Ownership first. Malformed, missing and not-owned look the same (§4.4).
+      const target = await getOwnedTargetOrThrow(targets, ownerId, targetId);
 
       // 2. Required source information (S1-BR-025).
       if (!target.sourceUrl?.trim()) {
