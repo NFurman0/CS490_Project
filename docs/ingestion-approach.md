@@ -1,4 +1,4 @@
-# Review Ingestion Approach (S1-020)
+# Review Ingestion Approach (S1-019, S1-020)
 
 ReviewLens supports one review platform: **Google Maps**. Reviews come from **SerpApi's [Google Maps Reviews API](https://serpapi.com/google-maps-reviews-api)**. Only the API calls SerpApi. The browser never does.
 
@@ -10,13 +10,16 @@ ReviewLens supports one review platform: **Google Maps**. Reviews come from **Se
 
 ## Where the code lives
 
-| File                                                     | Job                                                                                          |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `apps/api/src/modules/ingestion/review-source.ts`        | The `ReviewSource` interface and the `RawReview` shape. The rest of the app uses only these. |
-| `apps/api/src/adapters/serpapi/place-url.ts`             | Turns a Google Maps URL into a SerpApi place identifier.                                     |
-| `apps/api/src/adapters/serpapi/serpapi.client.ts`        | Fetches one page from SerpApi and turns failures into outcome codes.                         |
-| `apps/api/src/adapters/serpapi/serpapi.parser.ts`        | Pure parsing of a SerpApi response into `RawReview` records.                                 |
-| `apps/api/src/adapters/serpapi/serpapi-review-source.ts` | Puts the pieces together: resolve, page, cap.                                                |
+| File                                                          | Job                                                                                          |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `apps/api/src/modules/ingestion/review-source.ts`             | The `ReviewSource` interface and the `RawReview` shape. The rest of the app uses only these. |
+| `apps/api/src/adapters/serpapi/place-url.ts`                  | Turns a Google Maps URL into a SerpApi place identifier.                                     |
+| `apps/api/src/adapters/serpapi/serpapi.client.ts`             | Fetches one page from SerpApi and turns failures into outcome codes.                         |
+| `apps/api/src/adapters/serpapi/serpapi.parser.ts`             | Pure parsing of a SerpApi response into `RawReview` records.                                 |
+| `apps/api/src/adapters/serpapi/serpapi-review-source.ts`      | Puts the pieces together: resolve, page, cap.                                                |
+| `apps/api/src/modules/ingestion/ingestion.routes.ts`          | The endpoint that starts a run (S1-019).                                                     |
+| `apps/api/src/modules/ingestion/ingestion.service.ts`         | The request checks, the run lifecycle, and the call to the `ReviewSource`.                   |
+| `apps/api/src/modules/ingestion/ingestion-runs.repository.ts` | Database access for `IngestionRun`.                                                          |
 
 Parsing is separate from HTTP and from the UI, so it is tested against saved responses with no network.
 
@@ -66,6 +69,36 @@ Source and provider failures are returned as values, not thrown (Engineering Sta
 | HTTP 429, or "run out of searches"                                              | `PROVIDER_QUOTA_EXHAUSTED`                                             |
 | Network failure, non-JSON body, unexpected shape, invalid API key, other errors | `PROVIDER_ERROR`                                                       |
 | Page 1 succeeded but a later page failed                                        | Success with the reviews collected so far, plus `stoppedEarly: <code>` |
+
+## Starting a run (S1-019)
+
+`POST /api/analysis-targets/:targetId/ingestion-runs` with an empty body starts ingestion for one target. The source is always the target's stored `sourceUrl`. The client cannot pass a different URL.
+
+The checks run in this order, and the first one that fails ends the request (`docs/security-guardrails.md` §4.3):
+
+1. **Signed in.** Otherwise `401 UNAUTHENTICATED` (`requireUser`).
+2. **Target exists and the caller owns it.** One query by `targetId` and `ownerId`. A missing target, someone else's target, and a `targetId` that is not a UUID all get the same `404 NOT_FOUND`, so the response never reveals whether a target exists.
+3. **Source information is present.** A target with a blank `sourceUrl` gets `400 VALIDATION_FAILED` with a message saying the link is missing.
+
+Only after all three pass is an `IngestionRun` created (`status: running`) and the `ReviewSource` called. A request that fails a check creates no run and never reaches SerpApi. The integration tests assert both.
+
+The run then finishes with one of these outcomes. All of them return `201` with the run, because the request itself was valid:
+
+| Source result                             | Run                                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Reviews returned                          | `succeeded`, `reviewCount` = number returned                                                  |
+| Reviews returned, but a later page failed | `succeeded`, `reviewCount` = number kept, `errorCode` = why paging stopped (a partial result) |
+| Any outcome code from the table above     | `failed`, that `errorCode`, `reviewCount: 0`                                                  |
+| The source throws (a bug)                 | Run marked `failed` / `PROVIDER_ERROR`, then a generic `500`                                  |
+
+A run is never left in `running` after the request ends.
+
+Runs are **synchronous**: the request waits for SerpApi, bounded by `MAX_REVIEWS_PER_RUN` (default 50, at most 4 searches) and the 15-second timeout per page (Engineering Standards §13).
+
+**Limitations for Sprint 1:**
+
+- Fetched reviews are **counted, not stored**. Normalizing them (S1-021) and saving them as `Review` records (S1-022) plug into one marked spot in `ingestion.service.ts`.
+- There is no guard against two runs for the same target at the same time. Re-ingestion and duplicate handling are out of Sprint 1 scope.
 
 ## No substitute data
 

@@ -7,7 +7,6 @@ import { createTargetsRouter } from '../../src/modules/targets/targets.routes.js
 import { createTargetsRepository } from '../../src/modules/targets/targets.repository.js';
 import { createTargetsService } from '../../src/modules/targets/targets.service.js';
 import { createUsersRepository } from '../../src/modules/users/users.repository.js';
-import type { ReviewSource } from '../../src/modules/ingestion/review-source.js';
 import { createTestApp } from '../helpers/test-app.js';
 
 const testEnvPath = existsSync('.env.test') ? '.env.test' : 'apps/api/.env.test';
@@ -38,17 +37,14 @@ const validTargetInput = {
 function createTargetsApp({
   as,
   validateSourceUrl,
-  fetchReviews = vi.fn<ReviewSource['fetchReviews']>(),
 }: {
   as: string | null;
   validateSourceUrl: (sourceUrl: string) => Promise<boolean>;
-  fetchReviews?: ReviewSource['fetchReviews'];
 }) {
   const service = createTargetsService({ repository: targetsRepository, validateSourceUrl });
   return createTestApp({
     as,
     users,
-    reviewSource: { fetchReviews },
     extraRouters: [{ path: '/analysis-targets', router: createTargetsRouter(service) }],
   });
 }
@@ -237,11 +233,9 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
 
   it('creates an authenticated user target with server-assigned ownership', async () => {
     const validateSourceUrl = vi.fn(async () => true);
-    const fetchReviews = vi.fn();
     const app = createTargetsApp({
       as: 'clerk-create-target-a',
       validateSourceUrl,
-      fetchReviews,
     });
 
     const response = await request(app).post('/api/analysis-targets').send(validTargetInput);
@@ -257,7 +251,8 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
     expect(response.body.data).not.toHaveProperty('ownerId');
     expect(JSON.stringify(response.body)).not.toContain('clerk-create-target-a');
     expect(validateSourceUrl).toHaveBeenCalledWith(validTargetInput.sourceUrl);
-    expect(fetchReviews).not.toHaveBeenCalled();
+    // Creating a target never starts ingestion; that only happens via S1-019's endpoint.
+    expect(await prisma.ingestionRun.count()).toBe(0);
 
     const owner = await prisma.user.findUnique({
       where: { clerkUserId: 'clerk-create-target-a' },

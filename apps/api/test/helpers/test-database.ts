@@ -22,8 +22,9 @@ export const testPrisma = new PrismaClient({
   },
 });
 
-/** Removes all rows. Targets cascade from users, but are deleted explicitly for clarity. */
+/** Removes all rows. Children cascade from users, but are deleted explicitly for clarity. */
 export async function resetDatabase(): Promise<void> {
+  await testPrisma.ingestionRun.deleteMany();
   await testPrisma.analysisTarget.deleteMany();
   await testPrisma.user.deleteMany();
 }
