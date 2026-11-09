@@ -25,7 +25,6 @@ export function createIngestionService({
   maxReviewsPerRun,
   logger,
 }: IngestionServiceDependencies) {
-
   return {
     async latestRun(ownerId: string, targetId: string): Promise<IngestionRun | null> {
       const target = await getOwnedTargetOrThrow(targets, ownerId, targetId);
