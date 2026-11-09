@@ -2,6 +2,8 @@
 
 Use this checklist to prepare a local demo and record what actually passes. Follow the course rubric for the presentation order and required evidence. An unchecked item is unverified; mark missing functionality as blocked rather than presenting planned behavior as complete.
 
+**Current checked main:** [`6f79e84`](https://github.com/NFurman0/CS490_Project/commit/6f79e846d0fe2e5ec3f70a5a5d514f488b5362fe), November 9, 2026, 12:35 p.m. Eastern. PRs #42 and #43 are merged. The workspace and target-ownership routes below are now on main; review storage and live service verification remain incomplete.
+
 ## Prepare the machine
 
 - Use Node.js 24 from `.nvmrc`, npm, and Docker Compose with a running Docker daemon (the README recommends Docker Desktop). With nvm on macOS/Linux, run `nvm use` from the repository root. On Windows, select Node 24 with your installed Node version manager.
@@ -59,16 +61,18 @@ Check each result before continuing. If a check fails, preserve the failure and 
 
 The existing acceptance tests are:
 
-| Evidence                                                                                              | Existing test file                                                                                                                  |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Authentication and anonymous rejection                                                                | `apps/api/test/integration/auth.test.ts`                                                                                            |
-| Target creation, persistence, owner-only lists, input validation                                      | `apps/api/test/integration/analysis-targets-persistence.test.ts`                                                                    |
-| Identity mapping and server-assigned ownership                                                        | `apps/api/test/integration/ownership.test.ts`                                                                                       |
-| Ingestion owner success, anonymous/cross-user denial before provider calls, stored failed-run outcome | `apps/api/test/integration/ingestion.test.ts`                                                                                       |
-| Provider failures, timeouts, pagination, caps, and safe logging                                       | `apps/api/src/adapters/serpapi/serpapi-review-source.test.ts`                                                                       |
-| All ingestion failure codes and partial results                                                       | `apps/api/src/modules/ingestion/ingestion.service.test.ts`                                                                          |
-| Sign-in protection and logout behavior                                                                | `apps/web/src/app/App.test.tsx`                                                                                                     |
-| Creation feedback and target-list states                                                              | `apps/web/src/features/targets/pages/CreateTargetPage.test.tsx`, `apps/web/src/features/workspace/pages/WorkspaceHomePage.test.tsx` |
+| Evidence                                                                                          | Existing test file                                                                                                                  |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Authentication and anonymous rejection                                                            | `apps/api/test/integration/auth.test.ts`                                                                                            |
+| Target creation, persistence, owner-only lists, read/delete ownership, input validation           | `apps/api/test/integration/analysis-targets-persistence.test.ts`                                                                    |
+| Identity mapping and server-assigned ownership                                                    | `apps/api/test/integration/ownership.test.ts`                                                                                       |
+| Ingestion owner success, latest-run reads, anonymous/cross-user denial, stored failed-run outcome | `apps/api/test/integration/ingestion.test.ts`                                                                                       |
+| Provider failures, timeouts, pagination, caps, and safe logging                                   | `apps/api/src/adapters/serpapi/serpapi-review-source.test.ts`                                                                       |
+| All ingestion failure codes and partial results                                                   | `apps/api/src/modules/ingestion/ingestion.service.test.ts`                                                                          |
+| Sign-in protection and logout behavior                                                            | `apps/web/src/app/App.test.tsx`                                                                                                     |
+| Creation feedback and target-list states                                                          | `apps/web/src/features/targets/pages/CreateTargetPage.test.tsx`, `apps/web/src/features/workspace/pages/WorkspaceHomePage.test.tsx` |
+
+The current workspace component checks are in `apps/web/src/features/workspace/pages/TargetWorkspacePage.test.tsx`; they cover target details, successful/failed ingestion, denied access and safe loading/network failures. They do not cover the partial-result warning defect described below.
 
 Use these deterministic tests for provider-failure evidence. Do not exhaust a real quota, invalidate shared credentials, or substitute fixture reviews into the running app to stage a failure or success.
 
@@ -77,75 +81,69 @@ Use these deterministic tests for provider-failure evidence. Do not exhaust a re
 Start `npm run dev` in a separate terminal. Open <http://localhost:5173>; the public health endpoint is <http://localhost:3000/api/health>. A healthy response confirms the API is responding, not that sign-in or database operations work.
 
 1. Open `/analysis-targets` while signed out. Sign in as User A and verify the return to the protected page.
-2. Open `/analysis-targets/new` and create a clearly named rehearsal target using a real, supported Google Maps place URL. See [supported source URLs](ingestion-approach.md#supported-source-urls). Confirm the success message and that the target remains in `/analysis-targets` after a refresh.
-3. In a separate browser profile, sign in as User B and create a different target. Verify that each user's list contains their own target and excludes the other user's target. Keep their target IDs available only in local demo notes.
-4. If authenticated API rehearsal is available, verify the actual routes below. For request inspection or replay, use the signed-in browser's existing Network request context and request editor where available. Keep authentication inside that browser; never print or paste session tokens into terminal commands, history, screenshots, PRs, or AI transcripts. If that workflow is unavailable, mark the live API check blocked and retain the automated evidence.
-5. Sign out and verify protected content disappears. Finish with the verified results and remaining blockers, in the order required by the course rubric.
+2. Open `/analysis-targets/new` and create a clearly named rehearsal target using a real, supported Google Maps place URL. See [supported source URLs](ingestion-approach.md#supported-source-urls). Follow the creation confirmation into its workspace. Confirm the target name, platform and source. Check the target list and recent-target entry links, then refresh to verify persistence.
+3. In a separate browser profile, sign in as User B and create a different target. Verify that lists stay separate and that opening User A's workspace as User B shows no target details. Keep target IDs only in local demo notes.
+4. As User A, open the target workspace and start one bounded ingestion. Agree on the place and review cap first: real SerpApi calls spend searches. Do not repeat clicks or start parallel runs. Check the returned state and count, then reload the workspace and verify the persisted latest-run state. This verifies saved run information, not saved review content.
+5. If authenticated API rehearsal is available, check the routes below using the signed-in browser's existing Network request context and request editor where available. Keep authentication inside that browser; never print or paste tokens into terminal commands, screenshots, PRs or transcripts. If this workflow is unavailable, retain automated evidence and mark live API checks blocked.
+6. Sign out and verify protected content disappears. Present verified results and blockers in the order required by the course rubric.
 
-| Route                                                 | Current behavior to verify                                                                          |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `GET /api/session`                                    | Signed-in session accepted; anonymous request returns `401`                                         |
-| `POST /api/analysis-targets`                          | Creates a target owned by the authenticated user                                                    |
-| `GET /api/analysis-targets`                           | Lists only that user's targets                                                                      |
-| `GET /api/analysis-targets/recent`                    | Lists up to five of that user's newest targets                                                      |
-| `POST /api/analysis-targets/:targetId/ingestion-runs` | Empty body starts ingestion for the owner's stored source URL; returns `201` with the completed run |
+| Route                                                       | Current behavior to verify                                                                                        |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `GET /api/session`                                          | Signed-in session accepted; anonymous request returns `401`                                                       |
+| `POST /api/analysis-targets`                                | Creates a target owned by the authenticated user                                                                  |
+| `GET /api/analysis-targets`                                 | Lists only that user's targets                                                                                    |
+| `GET /api/analysis-targets/recent`                          | Lists up to five of that user's newest targets                                                                    |
+| `GET /api/analysis-targets/:targetId`                       | Returns the owner's target; missing or another user's target returns `404`                                        |
+| `DELETE /api/analysis-targets/:targetId`                    | Owner deletion returns `204`; denied deletion leaves the target unchanged. Use only a disposable rehearsal target |
+| `POST /api/analysis-targets/:targetId/ingestion-runs`       | Empty body starts ingestion for the owner's stored source URL; returns `201` with the completed run               |
+| `GET /api/analysis-targets/:targetId/ingestion-runs/latest` | Returns the owner's latest persisted run, or `null` if no run exists; inaccessible target returns `404`           |
 
-For live API isolation evidence, request User A's ingestion route as User B and expect `404 NOT_FOUND`; repeat anonymously and expect `401`. The existing integration test additionally proves that rejected requests create no run and never call the provider. **There is no target-detail GET route at the baseline below.** A `404` from `GET /api/analysis-targets/:targetId` does not prove ownership enforcement.
+For ownership evidence, first prove User A can access the same target that User B is denied. Verify `404 NOT_FOUND` for cross-user target read/delete and ingestion read/start, and `401` anonymously. Existing integration tests additionally prove that denied ingestion creates no run and never calls the provider; a denied delete leaves the owner's target intact. The target-detail GET route now exists, so the old missing-route caveat at `4f24794` no longer applies.
 
-A successful owner ingestion uses the real SerpApi key and spends searches. Agree on the place and review cap before running it; avoid repeated clicks or parallel runs. See [paging and the review cap](ingestion-approach.md#paging-and-the-review-cap). A handled source/provider failure before any reviews are collected returns `201` with a `failed` run, an `errorCode`, and zero reviews. If a later page fails after reviews were collected, the run returns `201` with `succeeded`, the collected count, and an `errorCode` warning. Inspect the run body, not just the HTTP status, and identify partial results as partial. The app must never replace a failure with sample reviews.
+A handled provider failure before any reviews are collected returns `201` with a `failed` run, an `errorCode`, and zero reviews. If a later page fails after reviews were collected, the run returns `201` with `succeeded`, the collected count, and an `errorCode` warning. See [paging and the review cap](ingestion-approach.md#paging-and-the-review-cap). **Current main does not display that partial-result warning in the workspace.** Inspect the run body where available; do not present the screen's “Succeeded” label alone as proof of a complete import. Use deterministic tests for failure evidence rather than exhausting quota or replacing failures with sample reviews.
 
-- [ ] Real Clerk sign-in, return navigation, and sign-out pass.
-- [ ] User A and User B each create and retain a distinct target; lists remain isolated.
-- [ ] Cross-user and anonymous ingestion denial are verified, with automated no-side-effect evidence.
-- [ ] If exercised, real owner ingestion returns the expected run outcome; record it honestly.
-- [ ] Required target workspace, ingestion controls, and status display are demonstrated, or recorded as blocked if missing.
-- [ ] Required normalized and saved reviews are verified, or recorded as blocked if missing. A fetched count alone does not prove review storage.
+- [ ] Real Clerk sign-in, return navigation and sign-out pass.
+- [ ] User A and User B create and retain distinct targets; lists and workspaces stay isolated.
+- [ ] Owner, anonymous, missing/malformed ID and cross-user target read/delete and ingestion read/start are verified. Owner success on the same target provides the positive control.
+- [ ] Workspace links, initial state, ingestion action, safe failures and latest-run state after reload are verified live.
+- [ ] Real owner ingestion returns an honestly recorded full, partial or failed outcome. The partial-result display defect is resolved before claiming that reporting works.
+- [ ] Normalized text/ratings are saved and retrievable after reload, belong to the correct target and remain inaccessible to another account. This is currently blocked by missing storage.
 
-### Known baseline scope
+## Current scope and remaining dependencies
 
-At `4f24794`, the frontend routes are target creation and the target list. There is no target detail/workspace or ingestion/status UI. The backend implements the routes above and persists ingestion-run outcomes, but fetched reviews are counted rather than normalized and saved as `Review` records. These are baseline observations, not claims that the related team work is finished. Recheck the actual demo revision before changing any blocked item to passed.
+At `6f79e84`, main includes the workspace screen, target read/delete ownership checks, ingestion controls and latest-run reads from merged [#42](https://github.com/NFurman0/CS490_Project/pull/42) and [#43](https://github.com/NFurman0/CS490_Project/pull/43). Their merges are no longer a pending dependency. Main is byte-identical to the previously tested #43 head `89ff5f2`.
 
-### Pending integration: November 9, 2026, 10:48 a.m. Eastern
+The backend persists ingestion-run status, timestamps, errors and the fetched count. It still does not normalize or save actual `Review` text/ratings. A persisted run summary is not persisted reviews.
 
-`main` is still `4f24794`. The three PRs below are open and unmerged; each has passing CI and no submitted reviews at this check. These results apply to their own revisions, not to a combined demo build.
+| Remaining work                                                                                                                                            | Current evidence                                                                | Acceptance gate                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [#41 — review/ingestion authorization](https://github.com/NFurman0/CS490_Project/pull/41), `fef5574`                                                      | Open and conflicting with current main; three review-storage tests remain TODOs | Reconcile ownership helpers while retaining main's target GET/DELETE and latest-run routes; complete storage-dependent tests |
+| [#21 — normalization](https://github.com/NFurman0/CS490_Project/issues/21), Jonathan's `549d765` branch                                                   | Counts usable normalized records but does not save them                         | Integrate reviewed normalization, resolve the observed formatting failures and test malformed-record behavior                |
+| [#22 — review storage](https://github.com/NFurman0/CS490_Project/issues/22) and [#23 — result state](https://github.com/NFurman0/CS490_Project/issues/23) | Assigned to Jonathan and still open at this check                               | Persist and retrieve real review content, verify ownership, and report outcomes/counts with accurate meaning                 |
+| Live service configuration                                                                                                                                | Local Clerk/SerpApi values remain placeholders                                  | Install valid matching development configuration privately, then complete the live two-account rehearsal                     |
 
-| Pending work                                                                              | Inspected revision and dependency                                                                                        | Demo implication                                                                                                                                                                                                   |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [#41 — review/ingestion authorization](https://github.com/NFurman0/CS490_Project/pull/41) | `fef5574`, based on `main`                                                                                               | Adds a shared ownership helper and authorization tests. Review-data cases remain TODOs until storage exists.                                                                                                       |
-| [#42 — target authorization](https://github.com/NFurman0/CS490_Project/pull/42)           | `0a094bd`, based on `main`                                                                                               | Adds owned target GET and DELETE routes. The detail-route caveat above remains true on current `main`.                                                                                                             |
-| [#43 — target workspace](https://github.com/NFurman0/CS490_Project/pull/43)               | `89ff5f2`, based on #42's branch                                                                                         | Adds workspace navigation, ingestion controls, and latest-run reads. Review after #42 and recheck its base after #42 merges, as the PR requests. Its displayed count is fetched reviews, not saved review content. |
-| [#21 — normalization](https://github.com/NFurman0/CS490_Project/issues/21)                | Jonathan's [`549d765`](https://github.com/NFurman0/CS490_Project/commit/549d765df992a77349ee72ffe5e7bc7017dddb54) branch | Converts raw records into usable reviews and counts them, but still does not save their text/ratings. [#22 — review storage](https://github.com/NFurman0/CS490_Project/issues/22) remains open.                    |
+A read-only merge simulation of #41 against current main finds conflicts in `ingestion.routes.ts`, `ingestion.service.ts`, `targets.service.ts` and `targets.service.test.ts`. The owners must reconcile the differing helper signatures and preserve the new endpoints. No combined #41/current-main revision has passed verification.
 
-#41 and #43 both change `ingestion.routes.ts` and `ingestion.service.ts`, including ownership checks. #41 and #42 also overlap in `targets.service.ts` and its tests. The normalization branch changes the ingestion service too. Individually passing checks do not establish that these changes work together. Have the feature owners reconcile the overlaps, then rehearse a reviewed integrated revision.
+When storage is available, replace #41's three TODOs with passing checks: cross-user review retrieval is denied, denied ingestion creates no reviews, and Target B retrieval never returns Target A's reviews. Do not count TODOs or skipped cases as coverage. After each relevant integration, record the exact revision, rerun affected quality gates and repeat the live rehearsal.
 
-After the team supplies the integrated revision, rerun the quality gates above and complete these additional checks. These are **pending**, not results from the earlier baseline tests:
+## Recorded local verification
 
-- [ ] Record the exact integrated commit and confirm which PRs are included. Confirm #43's target-read dependency is present and that overlapping ownership changes were reconciled.
-- [ ] Run owner, anonymous, missing/malformed ID, and different-user tests for target GET/DELETE and latest-run GET. Prove an owner succeeds on the same target used for denied requests. A denied delete must leave the owner's target unchanged; any successful delete demonstration uses a disposable rehearsal target.
-- [ ] Rerun ingestion denial checks after integration: no run creation, no provider call, no review changes, and no leaked target data for an unauthorized request.
-- [ ] Open the workspace through the list, recent targets and create confirmation. Check target identity, initial state, import action, error behavior, and latest-run state after a page reload. Saved run status is separate from saved review content.
-- [ ] Exercise full success, complete failure and partial success with deterministic tests. A succeeded run with an `errorCode` must not be presented as an unrestricted success; #43's inspected screen does not display that warning, so this needs review before claiming partial-result reporting works.
-- [ ] Once #21 and #22 are integrated, verify valid normalized text/ratings are actually retrievable after reload, belong to the right target, and remain inaccessible to another account. Verify malformed-record handling and that the reported count matches its stated meaning. A raw or normalized count alone does not pass storage acceptance.
-- [ ] Once storage exists, verify that the three TODOs in #41's `cross-user-authorization.test.ts` have become passing tests: cross-user review retrieval denied, denied ingestion creates no reviews, and Target B retrieval never returns Target A's reviews. Do not count TODO/skipped cases as coverage. Real Clerk/SerpApi configuration and live rehearsal remain separate requirements from CI.
+Checks ran on macOS with Node 26.5.0, unchanged locked dependencies, and PostgreSQL 17 in the dedicated `reviewlens_test` database. The guide recommends the project's Node 24. Windows instructions were reviewed, not executed on Windows.
 
-### Local verification: November 9, 2026, 12:10 p.m. Eastern
+| Exact revision                                                         | Existing test results                                         | Other checks                                                                  |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Current main `6f79e84`, freshly checked at 12:35 p.m. Eastern**      | **192 passed: shared 13, API 126, web 53; no skips or TODOs** | **Lint, formatting, typecheck and build passed**                              |
+| Earlier #43 head `89ff5f2`, including #42                              | 192 passed; no skips or TODOs                                 | All five gates passed; same code tree as current main                         |
+| #41 `fef5574`, checked separately                                      | 192 passed; 3 review-storage TODOs remain                     | Lint, formatting, typecheck and build passed                                  |
+| Earlier temporary local combination of #43 and normalization `549d765` | 221 passed; no skips or TODOs                                 | Lint, typecheck and build passed; formatting failed in five changed API files |
 
-The pending revisions were checked in a separate, detached checkout on macOS, using Node 26.5.0, the unchanged lockfile, and PostgreSQL 17. Database tests used the dedicated `reviewlens_test` database. No teammate branch or shared `main` was changed.
+The temporary combination was not committed or published. Its formatting failures are in `ingestion.service.test.ts`, `review-normalizer.test.ts`, `review-normalizer.ts`, `test/helpers/test-database.ts` and `test/integration/ingestion.test.ts`.
 
-| Revision                                                       | Existing test results                     | Other checks                                                                  |
-| -------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
-| #43 `89ff5f2`, including #42                                   | 192 passed; no skips or TODOs             | Lint, formatting, typecheck and build passed                                  |
-| #41 `fef5574`, separately                                      | 192 passed; 3 review-storage TODOs remain | Lint, formatting, typecheck and build passed                                  |
-| Temporary local combination of #43 and normalization `549d765` | 221 passed; no skips or TODOs             | Lint, typecheck and build passed; formatting failed in five changed API files |
+A separate component probe was rerun on current main: render otherwise identical `succeeded` runs first with `errorCode: null`, then with `errorCode: PROVIDER_TIMEOUT`. The visible workspace text is identical. The assertion that the user can distinguish those outcomes **fails**. This additional failing probe is separate from the passing existing-test counts above. The workspace needs a partial-result warning.
 
-The temporary combination was not committed or published. Its formatting failures are in `ingestion.service.test.ts`, `review-normalizer.test.ts`, `review-normalizer.ts`, `test/helpers/test-database.ts`, and `test/integration/ingestion.test.ts`. Passing existing tests does not establish full demo readiness:
+The local configuration was rechecked and remains placeholders. Earlier actual API startup stopped at configuration validation, while the web configuration-error screen loaded. Real sign-in, two-account isolation and live ingestion remain unverified. Automated tests use fake identities and recorded provider responses; they do not establish service access.
 
-- A separate component probe reproduced the partial-result issue: render otherwise identical `succeeded` runs first with `errorCode: null`, then with `errorCode: PROVIDER_TIMEOUT`. The visible workspace text is identical. The assertion that the user can distinguish these outcomes fails. This probe is separate from the passing existing-test counts above; the workspace needs a partial-result warning.
-- A read-only merge simulation between #43 and #41 found conflicts in `ingestion.routes.ts`, `ingestion.service.ts`, `targets.service.ts`, and `targets.service.test.ts`. The feature owners must preserve both the shared ownership checks and the new endpoints when reconciling them. No combined #41/#43 build has passed.
-- None of the inspected revisions persists actual `Review` records. #41's three TODOs therefore remain unresolved acceptance checks, and a run count still does not prove storage.
-- The live API startup check stopped at configuration validation because the local Clerk and SerpApi values are placeholders. The web configuration screen loads, but real sign-in, two-account isolation, and live ingestion remain blocked. Use valid matching team development configuration before attempting the live rehearsal.
-
-These results supplement the earlier snapshot; they do not approve or merge a feature PR. Recheck the revision and rerun affected checks after the owners update their branches.
+These results do not approve or merge a pending feature PR. Recheck current source state before treating any blocker as resolved.
 
 ## Repeat or recover safely
 
