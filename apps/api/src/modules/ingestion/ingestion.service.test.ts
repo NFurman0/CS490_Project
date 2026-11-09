@@ -118,9 +118,13 @@ describe('startIngestion', () => {
     expect(fetchReviews).toHaveBeenCalledWith({ sourceUrl: SOURCE_URL, maxReviews: 25 });
   });
 
-  it('records a succeeded run with the number of reviews returned', async () => {
+  it('records a succeeded run with the number of usable normalized reviews', async () => {
     const { service, runs } = setup({
-      result: { ok: true, place, reviews: [rawReview(1), rawReview(2), rawReview(3)] },
+      result: {
+        ok: true,
+        place,
+        reviews: [rawReview(1), { ...rawReview(2), text: null }, { ...rawReview(3), rating: 4.5 }],
+      },
     });
 
     const run = await service.startIngestion(OWNER_ID, TARGET_ID);
@@ -130,8 +134,45 @@ describe('startIngestion', () => {
       targetId: TARGET_ID,
       status: 'SUCCEEDED',
       errorCode: null,
-      reviewCount: 3,
+      reviewCount: 2,
       completedAt: expect.any(Date),
+    });
+  });
+
+  it('fails with SOURCE_NO_REVIEWS when every returned record is unusable', async () => {
+    const { service, runs } = setup({
+      result: {
+        ok: true,
+        place,
+        reviews: [{ ...rawReview(1), text: null }, { ...rawReview(2), rating: NaN }],
+      },
+    });
+
+    const run = await service.startIngestion(OWNER_ID, TARGET_ID);
+
+    expect(runs.repo.start).toHaveBeenCalledWith(TARGET_ID);
+    expect(run).toMatchObject({
+      status: 'FAILED',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+      completedAt: expect.any(Date),
+    });
+  });
+
+  it('reports SOURCE_NO_REVIEWS instead of a paging error if no collected review is usable', async () => {
+    const { service } = setup({
+      result: {
+        ok: true,
+        place,
+        reviews: [{ ...rawReview(1), rating: null }],
+        stoppedEarly: 'PROVIDER_TIMEOUT',
+      },
+    });
+
+    expect(await service.startIngestion(OWNER_ID, TARGET_ID)).toMatchObject({
+      status: 'FAILED',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
     });
   });
 

@@ -105,6 +105,40 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
     expect(saved).toMatchObject({ targetId: target.id, status: 'SUCCEEDED', reviewCount: 2 });
   });
 
+  it('counts only normalized reviews in the recorded run', async () => {
+    const target = await targetOwnedBy('clerk_a');
+    if (!succeeded.ok) throw new Error('expected fixture reviews');
+    const { app } = appFor('clerk_a', {
+      ...succeeded,
+      reviews: [succeeded.reviews[0]!, { ...succeeded.reviews[1]!, text: null }],
+    });
+
+    const res = await request(app).post(runsUrl(target.id)).expect(201);
+
+    expect(res.body.data).toMatchObject({ status: 'succeeded', errorCode: null, reviewCount: 1 });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({ where: { id: res.body.data.id } });
+    expect(saved).toMatchObject({ status: 'SUCCEEDED', reviewCount: 1 });
+  });
+
+  it('records SOURCE_NO_REVIEWS when all fetched reviews fail normalization', async () => {
+    const target = await targetOwnedBy('clerk_a');
+    if (!succeeded.ok) throw new Error('expected fixture reviews');
+    const { app } = appFor('clerk_a', {
+      ...succeeded,
+      reviews: succeeded.reviews.map((review) => ({ ...review, text: null })),
+    });
+
+    const res = await request(app).post(runsUrl(target.id)).expect(201);
+
+    expect(res.body.data).toMatchObject({
+      status: 'failed',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+    });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({ where: { id: res.body.data.id } });
+    expect(saved).toMatchObject({ status: 'FAILED', errorCode: 'SOURCE_NO_REVIEWS', reviewCount: 0 });
+  });
+
   it("returns 404 for another user's target before creating a run or calling the source", async () => {
     const target = await targetOwnedBy('clerk_a');
     const { app, fetchReviews } = appFor('clerk_b');

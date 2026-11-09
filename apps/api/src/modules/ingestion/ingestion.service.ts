@@ -2,6 +2,7 @@ import type { AnalysisTarget, IngestionRun } from '@prisma/client';
 import { AppError } from '../../lib/errors.js';
 import type { Logger } from '../../lib/logger.js';
 import type { FinishedRun, IngestionRunsRepository } from './ingestion-runs.repository.js';
+import { normalizeReviews } from './review-normalizer.js';
 import type { ReviewSource } from './review-source.js';
 
 /** The part of the targets repository ingestion needs. `findById` filters by owner. */
@@ -61,13 +62,16 @@ export function createIngestionService({
         });
 
         if (result.ok) {
-          // S1-021 / S1-022: normalize and persist result.reviews here. Until then
-          // the run records how many reviews the source returned.
-          outcome = {
-            status: 'SUCCEEDED',
-            errorCode: result.stoppedEarly ?? null,
-            reviewCount: result.reviews.length,
-          };
+          const normalized = normalizeReviews(result.reviews);
+          // S1-022 will persist normalized.reviews under the owned target. For now,
+          // reviewCount measures usable reviews, NOT reviews saved to the database.
+          outcome = normalized.ok
+            ? {
+                status: 'SUCCEEDED',
+                errorCode: result.stoppedEarly ?? null,
+                reviewCount: normalized.reviews.length,
+              }
+            : { status: 'FAILED', errorCode: normalized.errorCode, reviewCount: 0 };
         } else {
           outcome = { status: 'FAILED', errorCode: result.errorCode, reviewCount: 0 };
         }
