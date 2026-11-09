@@ -25,7 +25,13 @@ export function createIngestionService({
   maxReviewsPerRun,
   logger,
 }: IngestionServiceDependencies) {
+
   return {
+    async latestRun(ownerId: string, targetId: string): Promise<IngestionRun | null> {
+      const target = await getOwnedTargetOrThrow(targets, ownerId, targetId);
+      return runs.findLatest(target.id);
+    },
+
     /**
      * Starts ingestion for a target the caller owns (S1-019). The order of the
      * checks is required by docs/security-guardrails.md §4.3: a request for a

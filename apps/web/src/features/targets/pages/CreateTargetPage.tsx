@@ -4,6 +4,7 @@ import {
   createAnalysisTargetSchema,
 } from '@reviewlens/shared';
 import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
@@ -101,8 +102,9 @@ export function CreateTargetPage() {
             <h2>Target created</h2>
             <p>
               <strong>{createdTarget.name}</strong> is saved to your account. You can create another
-              target or open its saved source.
+              target or open its workspace.
             </p>
+            <Link to={`/analysis-targets/${createdTarget.id}`}>Open target workspace</Link>{' '}
             <a href={createdTarget.sourceUrl} rel="noopener noreferrer" target="_blank">
               Open source in Google Maps
             </a>

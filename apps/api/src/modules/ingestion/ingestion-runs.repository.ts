@@ -14,6 +14,7 @@ export interface FinishedRun {
 export interface IngestionRunsRepository {
   start(targetId: string): Promise<IngestionRun>;
   finish(runId: string, outcome: FinishedRun): Promise<IngestionRun>;
+  findLatest(targetId: string): Promise<IngestionRun | null>;
 }
 
 /**
@@ -36,6 +37,13 @@ export function createIngestionRunsRepository(
       return prisma.ingestionRun.update({
         where: { id: runId },
         data: { status, errorCode, reviewCount, completedAt: new Date() },
+      });
+    },
+
+    findLatest(targetId) {
+      return prisma.ingestionRun.findFirst({
+        where: { targetId },
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
       });
     },
   };

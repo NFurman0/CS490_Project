@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../lib/api-client';
 import { WorkspaceHomePage } from './WorkspaceHomePage';
@@ -25,7 +26,11 @@ describe('WorkspaceHomePage', () => {
       },
     ]);
 
-    render(<WorkspaceHomePage />);
+    render(
+      <MemoryRouter>
+        <WorkspaceHomePage />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByRole('heading', { name: 'My coffee shop' })).toBeInTheDocument();
     expect(screen.getByText('Review platform:')).toBeInTheDocument();
@@ -34,14 +39,22 @@ describe('WorkspaceHomePage', () => {
       'href',
       'https://maps.google.com/?cid=123',
     );
+    expect(screen.getByRole('link', { name: 'My coffee shop' })).toHaveAttribute(
+      'href',
+      '/analysis-targets/target-1',
+    );
     expect(api.get).toHaveBeenCalledWith('/api/analysis-targets');
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getAllByRole('link')).toHaveLength(2);
   });
 
   it('shows a useful empty state when the user has no targets', async () => {
     api.get.mockResolvedValue([]);
 
-    render(<WorkspaceHomePage />);
+    render(
+      <MemoryRouter>
+        <WorkspaceHomePage />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByText('You haven’t created any targets yet.')).toBeInTheDocument();
   });
@@ -49,7 +62,11 @@ describe('WorkspaceHomePage', () => {
   it('shows a safe error when loading the target list fails', async () => {
     api.get.mockRejectedValue(new ApiError(500, 'Targets could not be loaded.'));
 
-    render(<WorkspaceHomePage />);
+    render(
+      <MemoryRouter>
+        <WorkspaceHomePage />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Targets could not be loaded.');
   });
