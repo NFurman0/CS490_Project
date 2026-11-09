@@ -32,6 +32,8 @@ if (-not (Test-Path apps/api/.env.test)) { Copy-Item apps/api/.env.test.example 
 
 Fill in the API and web files using their template comments and the README. Keep secrets out of `VITE_` variables, screenshots, terminal output, and transcripts. Placeholder keys cannot start the live app. The automated tests use fake identities and recorded provider responses; they do not require live provider keys.
 
+For the first live connection check, set `MAX_REVIEWS_PER_RUN=1` in the ignored `apps/api/.env`, restart the API, and run ingestion once. This limits the check to one provider-page request. The default cap of 50 limits returned reviews, not searches: partially filled pages can require more than the four searches estimated in the ingestion notes. Increase the cap only after verifying the first result and available quota. Do not run ingestion simultaneously in multiple tabs.
+
 **Check `apps/api/.env.test` before testing.** It must point to the dedicated local `reviewlens_test` database on port `5433`, as in the template. Database tests delete rows between cases. Never use the development demo database or any database containing real data. A configured shell `DATABASE_URL` can also be used when the test file is absent, so do not rely on an inherited value.
 
 ```bash
