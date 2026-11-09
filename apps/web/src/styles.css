@@ -167,6 +167,16 @@ body {
   color: var(--color-text);
 }
 
+.recent-target-list a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.recent-target-list a:hover,
+.recent-target-list a:focus-visible {
+  text-decoration: underline;
+}
+
 .sidebar-message {
   margin: 0;
   color: var(--color-muted);
@@ -210,6 +220,60 @@ body {
   border: 1px dashed var(--color-border);
   border-radius: 0.625em;
   background: var(--color-surface);
+}
+
+.target-workspace-page {
+  width: 100%;
+  max-width: 78rem;
+}
+
+.workspace-back-link {
+  display: inline-block;
+  margin-bottom: var(--space-3);
+  color: var(--color-primary);
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-3);
+}
+
+.workspace-panel {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 0.625em;
+  background: var(--color-surface);
+}
+
+.workspace-panel h2 {
+  margin-top: 0;
+}
+
+.workspace-details {
+  margin: 0;
+}
+
+.workspace-details div + div {
+  margin-top: var(--space-2);
+}
+
+.workspace-details dt {
+  font-weight: 650;
+}
+
+.workspace-details dd {
+  margin: 0.25em 0 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-details a {
+  color: var(--color-primary);
+}
+
+.workspace-panel .button {
+  margin-top: var(--space-2);
 }
 
 .status-success {

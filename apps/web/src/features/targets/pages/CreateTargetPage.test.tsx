@@ -54,7 +54,7 @@ describe('CreateTargetPage', () => {
     expect(submit).toBeDisabled();
   });
 
-  it('creates a target, confirms it, and links to the saved source', async () => {
+  it('creates a target and links to its workspace and saved source', async () => {
     api.post.mockResolvedValue({
       id: 'target-1',
       ...validInput,
@@ -71,6 +71,10 @@ describe('CreateTargetPage', () => {
     });
     expect(await screen.findByRole('status')).toHaveTextContent('Target created');
     expect(screen.getByRole('status')).toHaveTextContent("Joe's Pizza is saved to your account");
+    expect(screen.getByRole('link', { name: 'Open target workspace' })).toHaveAttribute(
+      'href',
+      '/analysis-targets/target-1',
+    );
     expect(screen.getByRole('link', { name: 'Open source in Google Maps' })).toHaveAttribute(
       'href',
       validInput.sourceUrl,
