@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router';
 import { HomePage } from '../features/home/pages/HomePage';
 import { WorkspaceHomePage } from '../features/workspace/pages/WorkspaceHomePage';
+import { CreateTargetPage } from '../features/targets/pages/CreateTargetPage';
 import { ApiClientProvider } from '../lib/api-context';
 import { AppShell } from './AppShell';
 import { NotFoundPage } from './NotFoundPage';
@@ -21,6 +22,7 @@ export function App({ apiBaseUrl }: AppProps) {
         <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
           <Route element={<RequireSignedIn />}>
+            <Route path="analysis-targets/new" element={<CreateTargetPage />} />
             <Route path="analysis-targets" element={<WorkspaceHomePage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

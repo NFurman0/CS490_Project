@@ -15,7 +15,7 @@ export interface AppDependencies {
   users: UserDirectory;
   webOrigin: string;
   identity: IdentityProvider;
-  /** Where ingestion gets reviews from (SerpApi in production, a fake in tests). Used from S1-019. */
+  /** Where ingestion gets reviews from (SerpApi in production, a fake in tests). */
   reviewSource?: ReviewSource;
   /** Extra protected routers mounted under /api. Feature routers are added here as stories land. */
   extraRouters?: { path: string; router: Router }[];

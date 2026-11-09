@@ -3,6 +3,7 @@ import type { Router } from 'express';
 import { createApp } from '../../src/app.js';
 import type { IdentityProvider, UserDirectory } from '../../src/lib/identity.js';
 import { createLogger } from '../../src/lib/logger.js';
+import type { ReviewSource } from '../../src/modules/ingestion/review-source.js';
 
 /**
  * A fake identity provider that always resolves to the given Clerk user, or to
@@ -41,6 +42,7 @@ export interface TestAppOptions {
   /** Maps Clerk users to internal users. Defaults to an in-memory fake (no database). */
   users?: UserDirectory;
   extraRouters?: { path: string; router: Router }[];
+  reviewSource?: ReviewSource;
 }
 
 /** Builds the app for tests with a silent logger and an injected identity. */
@@ -48,12 +50,14 @@ export function createTestApp({
   as = 'user_test',
   users = fakeUserDirectory(),
   extraRouters = [],
+  reviewSource,
 }: TestAppOptions = {}) {
   return createApp({
     logger: createLogger('silent'),
     webOrigin: 'http://localhost:5173',
     identity: fakeIdentityProvider(as),
     users,
+    reviewSource,
     extraRouters,
   });
 }

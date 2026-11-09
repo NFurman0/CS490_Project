@@ -57,6 +57,7 @@ describe('protected pages', () => {
     expect(location()).toBe('/?returnTo=%2Fanalysis-targets');
     expect(screen.queryByRole('heading', { name: 'Analysis targets' })).not.toBeInTheDocument();
     expect(screen.getByText('Sign in to continue to that page.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Create Target/ })).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -75,11 +76,23 @@ describe('protected pages', () => {
     const { fetchMock } = renderAt('/analysis-targets');
 
     expect(screen.getByRole('heading', { name: 'Analysis targets' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Create Target/ })).toHaveAttribute(
+      'href',
+      '/analysis-targets/new',
+    );
     expect(
       await screen.findByText('You’re signed in and connected to ReviewLens.'),
     ).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer session-token');
+  });
+
+  it('shows the create-target form to a signed-in user', () => {
+    clerk.isSignedIn = true;
+    renderAt('/analysis-targets/new');
+
+    expect(screen.getByRole('heading', { name: 'Create an analysis target' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Create Target/ })).toBeInTheDocument();
   });
 
   it('removes protected content and redirects as soon as the user signs out', async () => {

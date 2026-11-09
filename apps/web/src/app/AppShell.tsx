@@ -1,3 +1,4 @@
+import { Show, useAuth } from '@clerk/react';
 import { Link, Outlet } from 'react-router';
 import { AccountControls } from '../features/auth/components/AccountControls';
 
@@ -7,6 +8,9 @@ import { AccountControls } from '../features/auth/components/AccountControls';
  * added here as a left sidebar for signed-in users.
  */
 export function AppShell() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const hasSidebar = isLoaded && isSignedIn;
+
   return (
     <div className="shell">
       <header className="shell-header">
@@ -15,9 +19,21 @@ export function AppShell() {
         </Link>
         <AccountControls />
       </header>
-      <main className="shell-main">
-        <Outlet />
-      </main>
+      <div className={`shell-body${hasSidebar ? ' shell-body-with-sidebar' : ''}`}>
+        <Show when="signed-in">
+          <aside className="shell-sidebar">
+            <nav aria-label="Analysis targets">
+              <Link to="/analysis-targets/new" className="button button-primary create-target-link">
+                <span aria-hidden="true">＋</span>
+                Create Target
+              </Link>
+            </nav>
+          </aside>
+        </Show>
+        <main className="shell-main">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
