@@ -13,6 +13,25 @@ enum ReviewPlatform {
   @@map("review_platform")
 }
 
+enum IngestionRunStatus {
+  RUNNING   @map("running")
+  SUCCEEDED @map("succeeded")
+  FAILED    @map("failed")
+
+  @@map("ingestion_run_status")
+}
+
+/// Same values as INGESTION_ERROR_CODES in packages/shared (Engineering Standards §6.4).
+enum IngestionRunErrorCode {
+  SOURCE_UNRESOLVABLE
+  SOURCE_NO_REVIEWS
+  PROVIDER_TIMEOUT
+  PROVIDER_QUOTA_EXHAUSTED
+  PROVIDER_ERROR
+
+  @@map("ingestion_error_code")
+}
+
 model User {
   id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   clerkUserId String           @unique @map("clerk_user_id")
@@ -23,14 +42,35 @@ model User {
 }
 
 model AnalysisTarget {
-  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ownerId   String         @map("owner_id") @db.Uuid
-  name      String         @db.VarChar(200)
-  platform  ReviewPlatform
-  sourceUrl String         @map("source_url") @db.Text
-  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId       String         @map("owner_id") @db.Uuid
+  name          String         @db.VarChar(200)
+  platform      ReviewPlatform
+  sourceUrl     String         @map("source_url") @db.Text
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ingestionRuns IngestionRun[]
 
   @@index([ownerId, createdAt(sort: Desc)])
   @@map("analysis_targets")
+}
+
+/// One ingestion attempt for a target (S1-019). Owned transitively through the target,
+/// so it is only ever reached after the target's ownership check (docs/security-guardrails.md §4.3).
+///
+/// `errorCode` is required when `status` is FAILED. On a SUCCEEDED run it means the
+/// result is partial: a later page failed with that code and the reviews collected
+/// before it were kept.
+model IngestionRun {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  targetId    String                 @map("target_id") @db.Uuid
+  status      IngestionRunStatus
+  errorCode   IngestionRunErrorCode? @map("error_code")
+  reviewCount Int                    @default(0) @map("review_count")
+  startedAt   DateTime               @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt DateTime?              @map("completed_at") @db.Timestamptz(3)
+  target      AnalysisTarget         @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([targetId, startedAt(sort: Desc)])
+  @@map("ingestion_runs")
 }

@@ -9,6 +9,12 @@ import { createApp } from './app.js';
 import { ConfigError, loadEnv, type Env } from './config/env.js';
 import { createLogger } from './lib/logger.js';
 import { createPrismaClient } from './lib/prisma.js';
+import { createIngestionRunsRepository } from './modules/ingestion/ingestion-runs.repository.js';
+import {
+  createIngestionRouter,
+  INGESTION_RUNS_PATH,
+} from './modules/ingestion/ingestion.routes.js';
+import { createIngestionService } from './modules/ingestion/ingestion.service.js';
 import { createTargetsRouter } from './modules/targets/targets.routes.js';
 import { createTargetsRepository } from './modules/targets/targets.repository.js';
 import { createTargetsService } from './modules/targets/targets.service.js';
@@ -48,14 +54,22 @@ const targetsService = createTargetsService({
       timeoutMs: DEFAULT_SOURCE_RESOLUTION_TIMEOUT_MS,
     })) !== null,
 });
-const targetsRouter = createTargetsRouter(targetsService);
+const ingestionService = createIngestionService({
+  targets: targetsRepository,
+  runs: createIngestionRunsRepository(prisma),
+  reviewSource,
+  maxReviewsPerRun: env.MAX_REVIEWS_PER_RUN,
+  logger,
+});
 const app = createApp({
   logger,
   webOrigin: env.WEB_ORIGIN,
   identity,
   users,
-  reviewSource,
-  extraRouters: [{ path: '/analysis-targets', router: targetsRouter }],
+  extraRouters: [
+    { path: '/analysis-targets', router: createTargetsRouter(targetsService) },
+    { path: INGESTION_RUNS_PATH, router: createIngestionRouter(ingestionService) },
+  ],
 });
 
 const server = app.listen(env.PORT, () => {
