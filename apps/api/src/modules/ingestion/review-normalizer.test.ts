@@ -140,7 +140,10 @@ describe('normalizeReviews', () => {
       ]),
     ).toMatchObject({
       ok: true,
-      reviews: [{ text: 'First', rating: 4.5 }, { text: 'Third', rating: 1 }],
+      reviews: [
+        { text: 'First', rating: 4.5 },
+        { text: 'Third', rating: 1 },
+      ],
     });
   });
 

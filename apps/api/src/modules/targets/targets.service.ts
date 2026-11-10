@@ -5,6 +5,8 @@ import type { NewAnalysisTarget } from './targets.repository.js';
 
 export interface TargetsRepository {
   create(ownerId: string, target: NewAnalysisTarget): Promise<AnalysisTarget>;
+  findById(ownerId: string, targetId: string): Promise<AnalysisTarget | null>;
+  deleteById(ownerId: string, targetId: string): Promise<{ count: number }>;
   findMany(ownerId: string, take?: number): Promise<AnalysisTarget[]>;
 }
 
@@ -40,6 +42,17 @@ export function createTargetsService({
 
     listRecent(ownerId: string) {
       return repository.findMany(ownerId, RECENT_TARGET_LIMIT);
+    },
+
+    async getOwned(ownerId: string, targetId: string) {
+      const target = await repository.findById(ownerId, targetId);
+      if (!target) throw new AppError('NOT_FOUND', 'Analysis target not found.');
+      return target;
+    },
+
+    async deleteOwned(ownerId: string, targetId: string) {
+      const result = await repository.deleteById(ownerId, targetId);
+      if (result.count === 0) throw new AppError('NOT_FOUND', 'Analysis target not found.');
     },
   };
 }

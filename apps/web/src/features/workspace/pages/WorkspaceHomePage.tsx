@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
@@ -43,7 +44,9 @@ export function WorkspaceHomePage() {
         <ul className="target-list">
           {targets.map((target) => (
             <li className="target-list-item" key={target.id}>
-              <h2>{target.name}</h2>
+              <h2>
+                <Link to={`/analysis-targets/${target.id}`}>{target.name}</Link>
+              </h2>
               <p>
                 <strong>Review platform:</strong> Google Maps
               </p>

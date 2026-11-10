@@ -31,7 +31,18 @@ export function createIngestionService({
   maxReviewsPerRun,
   logger,
 }: IngestionServiceDependencies) {
+  async function getOwnedTargetOrThrow(ownerId: string, targetId: string): Promise<AnalysisTarget> {
+    const target = await targets.findById(ownerId, targetId);
+    if (!target) throw new AppError('NOT_FOUND', 'Analysis target not found.');
+    return target;
+  }
+
   return {
+    async latestRun(ownerId: string, targetId: string): Promise<IngestionRun | null> {
+      const target = await getOwnedTargetOrThrow(ownerId, targetId);
+      return runs.findLatest(target.id);
+    },
+
     /**
      * Starts ingestion for a target the caller owns (S1-019). The order of the
      * checks is required by docs/security-guardrails.md §4.3: a request for a
@@ -41,10 +52,7 @@ export function createIngestionService({
      */
     async startIngestion(ownerId: string, targetId: string): Promise<IngestionRun> {
       // 1. Ownership first. Missing and not-owned look the same to the caller (§4.4).
-      const target = await targets.findById(ownerId, targetId);
-      if (!target) {
-        throw new AppError('NOT_FOUND', 'Analysis target not found.');
-      }
+      const target = await getOwnedTargetOrThrow(ownerId, targetId);
 
       // 2. Required source information (S1-BR-025).
       if (!target.sourceUrl?.trim()) {

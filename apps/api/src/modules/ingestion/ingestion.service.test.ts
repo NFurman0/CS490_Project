@@ -58,6 +58,10 @@ function fakeRuns() {
       rows.set(runId, run);
       return run;
     }),
+    findLatest: vi.fn(
+      async (targetId: string) =>
+        [...rows.values()].filter((run) => run.targetId === targetId).at(-1) ?? null,
+    ),
   };
   return { repo, rows };
 }
@@ -95,6 +99,27 @@ function setup({
 }
 
 const place = { title: "Joe's Pizza", address: null, totalReviews: 3 };
+
+describe('latestRun', () => {
+  it('checks ownership before reading any ingestion run', async () => {
+    const { service, targets, runs, fetchReviews } = setup({ found: null });
+
+    await expect(service.latestRun(OWNER_ID, TARGET_ID)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      httpStatus: 404,
+    });
+    expect(targets.findById).toHaveBeenCalledWith(OWNER_ID, TARGET_ID);
+    expect(runs.repo.findLatest).not.toHaveBeenCalled();
+    expect(fetchReviews).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the owned target has no ingestion run', async () => {
+    const { service, runs } = setup();
+
+    await expect(service.latestRun(OWNER_ID, TARGET_ID)).resolves.toBeNull();
+    expect(runs.repo.findLatest).toHaveBeenCalledWith(TARGET_ID);
+  });
+});
 
 describe('startIngestion', () => {
   it('rejects a missing or not-owned target before creating a run or calling the source', async () => {
@@ -165,7 +190,6 @@ describe('startIngestion', () => {
         ],
       },
     });
-
     const run = await service.startIngestion(OWNER_ID, TARGET_ID);
 
     expect(runs.repo.start).toHaveBeenCalledWith(TARGET_ID);

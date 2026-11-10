@@ -24,6 +24,13 @@ export function listAnalysisTargets(client: ApiClient): Promise<AnalysisTargetSu
   return client.get('/api/analysis-targets');
 }
 
+export function getAnalysisTarget(
+  client: ApiClient,
+  targetId: string,
+): Promise<AnalysisTargetSummary> {
+  return client.get(`/api/analysis-targets/${encodeURIComponent(targetId)}`);
+}
+
 export function listRecentAnalysisTargets(client: ApiClient): Promise<AnalysisTargetSummary[]> {
   return client.get('/api/analysis-targets/recent');
 }
