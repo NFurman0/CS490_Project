@@ -1,6 +1,8 @@
 import type { IngestionErrorCode } from '@reviewlens/shared';
 
-/** Saving can fail after fetching; a review source cannot report a persistence failure. */
+/** Sources can report fetch failures, but cannot know if a later DB save failed.
+ * Keep PERSISTENCE_ERROR on the run contract, not on provider results.
+ */
 export type SourceOutcomeCode = Exclude<IngestionErrorCode, 'PERSISTENCE_ERROR'>;
 
 /**

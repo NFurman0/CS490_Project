@@ -71,6 +71,7 @@ export function extractReview(value: unknown): RawReview {
 /**
  * Maps a SerpApi failure to an ingestion outcome code (Engineering Standards §6.4).
  * `errorText` is SerpApi's own message: used for classification only, never shown or stored.
+ * The source-only return type cannot mistake a provider error for a DB save error.
  */
 export function classifyProviderError(
   httpStatus: number,

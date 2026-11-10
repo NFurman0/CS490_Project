@@ -42,6 +42,7 @@ function appFor(clerkUserId: string | null, result: FetchReviewsResult = succeed
   const service = createIngestionService({
     targets,
     runs: createIngestionRunsRepository(testPrisma),
+    // Unlike the unit-test fake, this writes real rows to the isolated test DB.
     reviews: createReviewsRepository(testPrisma),
     reviewSource: { fetchReviews },
     maxReviewsPerRun: 50,

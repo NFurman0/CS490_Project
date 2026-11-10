@@ -9,6 +9,8 @@ export interface ReviewTargetLookup {
 export function createReviewsService(targets: ReviewTargetLookup, reviews: ReviewsRepository) {
   return {
     async list(ownerId: string, targetId: string) {
+      // The URL only selects a target; it does not prove the caller owns it.
+      // Check the parent before touching any child Review data.
       const target = await targets.findById(ownerId, targetId);
       if (!target) throw new AppError('NOT_FOUND', 'Analysis target not found.');
       // The read still scopes by owner in SQL, even after the parent check.

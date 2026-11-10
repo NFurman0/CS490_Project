@@ -55,7 +55,8 @@ export async function resetDatabase(): Promise<void> {
   if (connected?.name !== 'reviewlens_test') {
     throw new Error('Refusing to reset a database other than reviewlens_test.');
   }
-  // Delete children first; the connected-database check above guards every deletion.
+  // Reviews are new child rows. Delete them only after verifying the *connected*
+  // database above; checking the URL alone would not guard a misdirected DB.
   await testPrisma.review.deleteMany();
   await testPrisma.ingestionRun.deleteMany();
   await testPrisma.analysisTarget.deleteMany();

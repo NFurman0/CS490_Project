@@ -49,6 +49,8 @@ const identity = createClerkIdentityProvider({
 const users = createUsersRepository(prisma);
 const reviewSource = createSerpApiReviewSource({ apiKey: env.SERPAPI_API_KEY, logger });
 const targetsRepository = createTargetsRepository(prisma);
+// Both the ingestion writer and the owned GET reader use this same DB-backed
+// repository; no endpoint accepts a review or owner ID from a request body.
 const reviewsRepository = createReviewsRepository(prisma);
 const targetsService = createTargetsService({
   repository: targetsRepository,
@@ -74,6 +76,8 @@ const app = createApp({
   extraRouters: [
     { path: '/analysis-targets', router: createTargetsRouter(targetsService) },
     { path: INGESTION_RUNS_PATH, router: createIngestionRouter(ingestionService) },
+    // createApp mounts extraRouters after authentication on /api; the GET
+    // service also checks that the session's user owns the selected target.
     {
       path: REVIEWS_PATH,
       router: createReviewsRouter(createReviewsService(targetsRepository, reviewsRepository)),

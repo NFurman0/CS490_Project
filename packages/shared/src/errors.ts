@@ -18,6 +18,7 @@ export const INGESTION_ERROR_CODES = [
   'PROVIDER_TIMEOUT',
   'PROVIDER_QUOTA_EXHAUSTED',
   'PROVIDER_ERROR',
+  // A saved run needs its own code if the DB fails after the source succeeds.
   'PERSISTENCE_ERROR',
 ] as const;
 

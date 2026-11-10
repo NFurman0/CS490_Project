@@ -24,6 +24,7 @@ export interface FetchPageOptions {
   logger: Logger;
 }
 
+/** One provider page cannot report the later database-save outcome. */
 export type FetchPageResult =
   | {
       ok: true;

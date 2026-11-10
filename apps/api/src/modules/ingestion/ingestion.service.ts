@@ -14,6 +14,7 @@ export interface OwnedTargetLookup {
 export interface IngestionServiceDependencies {
   targets: OwnedTargetLookup;
   runs: IngestionRunsRepository;
+  /** Saves usable reviews and finishes a successful run in one DB transaction. */
   reviews: ReviewsRepository;
   reviewSource: ReviewSource;
   /** MAX_REVIEWS_PER_RUN: upper bound on reviews fetched in one run. */
@@ -66,6 +67,8 @@ export function createIngestionService({
       const run = await runs.start(target.id);
 
       let outcome: FinishedRun;
+      // A successful fetch may still normalize to zero usable reviews. Keep
+      // the normalized result separate from the run outcome until a save succeeds.
       let normalizedReviews: ReturnType<typeof normalizeReviews> | null = null;
       try {
         const result = await reviewSource.fetchReviews({
@@ -85,7 +88,7 @@ export function createIngestionService({
             ? {
                 status: 'SUCCEEDED',
                 errorCode: result.stoppedEarly ?? null,
-                reviewCount: 0, // Replaced by the actual inserted count in the transaction.
+                reviewCount: 0, // The transaction replaces this with the inserted row count.
               }
             : { status: 'FAILED', errorCode: normalized.errorCode, reviewCount: 0 };
         } else {
@@ -107,8 +110,8 @@ export function createIngestionService({
       let finished: IngestionRun;
       if (normalizedReviews?.ok) {
         try {
-          // One transaction inserts the complete batch and finishes the run.
-          // An insert or finish failure rolls both operations back.
+          // The repository commits inserts and SUCCEEDED together. If either
+          // fails, PostgreSQL rolls the entire batch back; never claim it saved.
           finished = await reviews.saveBatchAndFinishRun(
             ownerId,
             target.id,
@@ -117,6 +120,8 @@ export function createIngestionService({
             outcome.errorCode,
           );
         } catch (error) {
+          // This runs only for save failures, outside the provider try/catch:
+          // labeling a database problem PROVIDER_ERROR would be misleading.
           try {
             await runs.finish(run.id, {
               status: 'FAILED',
@@ -131,6 +136,7 @@ export function createIngestionService({
               'could not record persistence failure',
             );
           }
+          // The shared error handler sends a generic 500, not Prisma's error text.
           throw error;
         }
       } else {

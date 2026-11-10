@@ -46,6 +46,8 @@ const success = (
 });
 
 function appFor(as: string | null, result: FetchReviewsResult = success(), save = reviews) {
+  // Replace Clerk and SerpApi in tests, but leave the repository connected to
+  // PostgreSQL. Response assertions alone would not prove a row was saved.
   const fetchReviews = vi.fn<ReviewSource['fetchReviews']>(async () => result);
   const service = createIngestionService({
     targets,
@@ -75,6 +77,8 @@ async function targetFor(as: string) {
 }
 
 describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => {
+  // resetDatabase checks the actual connected DB name before deleting rows.
+  // If the test DB is not configured, these tests skip rather than touch dev data.
   beforeEach(resetDatabase);
   afterAll(async () => {
     await testPrisma.$disconnect();
@@ -84,6 +88,8 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
     const target = await targetFor('clerk_a');
     const { app } = appFor('clerk_a');
     const run = await request(app).post(postUrl(target.id)).expect(201);
+    // Inspect the real row as well as the GET result: these are two separate
+    // places where a source value could be changed or accidentally dropped.
     const saved = await testPrisma.review.findMany({ where: { targetId: target.id } });
     expect(run.body.data).toMatchObject({ status: 'succeeded', reviewCount: 1 });
     expect(saved).toHaveLength(1);
@@ -112,6 +118,8 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
   });
 
   it('preserves a date-only publishedAt in the saved row and owned GET response', async () => {
+    // A timestamp conversion could turn 2026-11-08 into midnight UTC; the
+    // agreed mapping keeps this source string exactly as it was normalized.
     const target = await targetFor('clerk_a');
     const { app } = appFor('clerk_a', success([{ ...review(), publishedAt: '2026-11-08' }]));
 
@@ -165,6 +173,8 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
   });
 
   it('isolates two targets of the same owner and returns [] for an empty target', async () => {
+    // Different users returning 404 is not enough: this catches a query that
+    // filters by owner but forgets to filter by the selected target ID.
     const a = await targetFor('clerk_a');
     const b = await targetFor('clerk_a');
     const empty = await targetFor('clerk_a');
@@ -262,7 +272,8 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
     const target = await targetFor('clerk_a');
     await request(appFor('clerk_a').app).post(postUrl(target.id)).expect(201);
     const prior = await testPrisma.review.findMany();
-    // Force updateMany to match no RUNNING row after createMany; PostgreSQL must roll back both.
+    // Give the repository a nonexistent run ID after it inserts two reviews.
+    // The transaction must undo both inserts before recording the real run as failed.
     const broken: typeof reviews = {
       ...reviews,
       saveBatchAndFinishRun: (ownerId, targetId, _runId, batch, stoppedEarly) =>
@@ -287,6 +298,8 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
   });
 
   it('cascades child reviews on target deletion while leaving another target intact', async () => {
+    // Prisma deletes only the parent here: the foreign key, not application
+    // cleanup code, must remove its children and leave another target alone.
     const a = await targetFor('clerk_a');
     const b = await targetFor('clerk_a');
     const app = appFor('clerk_a').app;

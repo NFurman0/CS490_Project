@@ -73,6 +73,8 @@ function setup({
 } = {}) {
   const targets: OwnedTargetLookup = { findById: vi.fn(async () => found) };
   const runs = fakeRuns();
+  // A fake lets service tests check decisions (which reviews/counts to save).
+  // It cannot prove rows exist in PostgreSQL; reviews.test.ts does that.
   const reviews: ReviewsRepository = {
     findByTarget: vi.fn(async () => []),
     saveBatchAndFinishRun: vi.fn(async (_ownerId, _targetId, runId, batch, stoppedEarly) =>
@@ -219,6 +221,7 @@ describe('startIngestion', () => {
     });
   });
 
+  // PERSISTENCE_ERROR is generated after a fetch, never supplied by a source.
   it.each(INGESTION_ERROR_CODES.filter((code) => code !== 'PERSISTENCE_ERROR'))(
     'records a failed run with zero reviews for %s',
     async (code) => {
