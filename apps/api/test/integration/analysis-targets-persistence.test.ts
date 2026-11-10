@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { PrismaClient, ReviewPlatform } from '@prisma/client';
+import { ReviewPlatform } from '@prisma/client';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTargetsRouter } from '../../src/modules/targets/targets.routes.js';
@@ -8,24 +7,11 @@ import { createTargetsRepository } from '../../src/modules/targets/targets.repos
 import { createTargetsService } from '../../src/modules/targets/targets.service.js';
 import { createUsersRepository } from '../../src/modules/users/users.repository.js';
 import { createTestApp } from '../helpers/test-app.js';
+import { hasTestDatabase, resetDatabase, testPrisma } from '../helpers/test-database.js';
 
-const testEnvPath = existsSync('.env.test') ? '.env.test' : 'apps/api/.env.test';
-if (existsSync(testEnvPath)) {
-  delete process.env.DATABASE_URL;
-  process.loadEnvFile(testEnvPath);
-}
-
-const databaseUrl = process.env.DATABASE_URL;
-if (databaseUrl && new URL(databaseUrl).pathname !== '/reviewlens_test') {
-  throw new Error(
-    'AnalysisTarget integration tests require the dedicated reviewlens_test database.',
-  );
-}
-const prisma = new PrismaClient({
-  datasources: {
-    db: { url: databaseUrl ?? 'postgresql://reviewlens:reviewlens@localhost:5433/reviewlens_test' },
-  },
-});
+// Use the shared, guarded test client: this suite deletes data before each
+// case, so its previous stand-alone Prisma client must not bypass the guard.
+const prisma = testPrisma;
 const targetsRepository = createTargetsRepository(prisma);
 const users = createUsersRepository(prisma);
 
@@ -49,7 +35,7 @@ function createTargetsApp({
   });
 }
 
-describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
+describe.skipIf(!hasTestDatabase)('AnalysisTarget persistence', () => {
   let ownerAId: string;
   let ownerBId: string;
   let ownerAClerkUserId: string;
@@ -60,8 +46,7 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
   });
 
   beforeEach(async () => {
-    await prisma.analysisTarget.deleteMany();
-    await prisma.user.deleteMany();
+    await resetDatabase();
     ownerAClerkUserId = `clerk-${randomUUID()}`;
     ownerBClerkUserId = `clerk-${randomUUID()}`;
     const [ownerA, ownerB] = await Promise.all([
