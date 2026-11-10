@@ -40,6 +40,8 @@ export function TargetWorkspacePage() {
   const [startError, setStartError] = useState<PageError | null>(null);
   const navigationEpoch = useRef(0);
 
+  // React may reuse this page for another target while its earlier requests are in flight.
+  // Never render a previous target's details or errors while the new target loads.
   const currentWorkspace = workspace?.targetId === targetId ? workspace : null;
   const currentLoadError = !targetId
     ? 'Analysis target not found.'
@@ -62,6 +64,8 @@ export function TargetWorkspacePage() {
         try {
           run = await getLatestIngestionRun(client, requestedId);
         } catch {
+          // The target itself loaded successfully; keep its workspace usable
+          // without claiming a missing run means there have been no attempts.
           statusError = 'Could not load the current ingestion state. Try again.';
         }
         if (active) setWorkspace({ targetId: requestedId, target, run, statusError });
@@ -81,7 +85,8 @@ export function TargetWorkspacePage() {
     void loadWorkspace();
     return () => {
       active = false;
-      // Late POST/refresh responses must not update a workspace after navigation.
+      // Incrementing even when navigating away and back to the same target ID
+      // invalidates responses from the previous visit, not just other targets.
       navigationEpoch.current += 1;
     };
   }, [client, targetId]);
@@ -89,6 +94,9 @@ export function TargetWorkspacePage() {
   async function handleStartIngestion() {
     if (!targetId || isStarting) return;
     const requestedId = targetId;
+    // Remember which saved run was visible before the POST. A 500 can occur
+    // after a new run was persisted, so the refresh must distinguish new state
+    // from the older run rather than treating every successful GET as new work.
     const previousRunId = currentWorkspace?.run?.id;
     const epoch = navigationEpoch.current;
     const isCurrent = () => navigationEpoch.current === epoch;
@@ -120,7 +128,9 @@ export function TargetWorkspacePage() {
                   ? {
                       ...current,
                       run: null,
-                      // A successful read can still return the run from before this POST.
+                      // Same ID means the GET found only the older run; it cannot
+                      // establish whether this POST created or completed a new one.
+                      // Hide that old success as attempt feedback, not its saved reviews.
                       statusError:
                         'The latest saved run is from before this request. The outcome of this attempt could not be confirmed. Try again.',
                     }
@@ -197,9 +207,11 @@ export function TargetWorkspacePage() {
                   <p>
                     <strong>Current state:</strong> {statusLabel(currentWorkspace.run)}
                   </p>
+                  {/* The count is inserted rows for this run, not raw source records or a lifetime total. */}
                   {currentWorkspace.run?.status === 'succeeded' && (
                     <p>{currentWorkspace.run.reviewCount} reviews saved in this run.</p>
                   )}
+                  {/* A later-page error warns about collection, but does not undo saved reviews. */}
                   {currentWorkspace.run?.status === 'succeeded' &&
                     currentWorkspace.run.errorCode && (
                       <p className="form-error-summary" role="alert">
