@@ -28,6 +28,8 @@ enum IngestionRunErrorCode {
   PROVIDER_TIMEOUT
   PROVIDER_QUOTA_EXHAUSTED
   PROVIDER_ERROR
+  /// This is a database save failure, not an error returned by the review source.
+  PERSISTENCE_ERROR
 
   @@map("ingestion_error_code")
 }
@@ -50,6 +52,8 @@ model AnalysisTarget {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   ingestionRuns IngestionRun[]
+  // Deleting the target cascades to these child rows.
+  reviews       Review[]
 
   @@index([ownerId, createdAt(sort: Desc)])
   @@map("analysis_targets")
@@ -73,4 +77,27 @@ model IngestionRun {
 
   @@index([targetId, startedAt(sort: Desc)])
   @@map("ingestion_runs")
+}
+
+/// Review ownership is inherited from its non-null parent target; there is no
+/// second owner column that could disagree with the target's owner.
+model Review {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  targetId       String         @map("target_id") @db.Uuid
+  // Optional source ID helps future duplicate detection without blocking re-ingestion.
+  sourceReviewId String?        @map("source_review_id") @db.Text
+  text           String         @db.Text
+  // An integer would round fractional ratings such as 4.5.
+  rating         Float
+  reviewerName   String?        @map("reviewer_name") @db.Text
+  // The validated source ISO string can be date-only or contain an offset; keep it verbatim.
+  publishedAt    String?        @map("published_at") @db.Text
+  reviewUrl      String?        @map("review_url") @db.Text
+  // Keep optional provider details as JSON without adding provider-specific columns.
+  metadata       Json           @default("{}") @db.JsonB
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  target         AnalysisTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([targetId])
+  @@map("reviews")
 }

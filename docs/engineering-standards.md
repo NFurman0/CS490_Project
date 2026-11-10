@@ -195,8 +195,11 @@ An ingestion request that passes the request checks (authenticated, target owned
 | `PROVIDER_TIMEOUT` | SerpApi did not respond in time |
 | `PROVIDER_QUOTA_EXHAUSTED` | SerpApi search quota is used up |
 | `PROVIDER_ERROR` | SerpApi returned an error or an unexpected response shape |
+| `PERSISTENCE_ERROR` | Saving normalized reviews failed; no reviews from that batch were committed |
 
 These outcomes must stay distinct (S1-020). A failed run never creates Review records (S1-BR-024).
+An unexpected persistence failure returns a generic HTTP `500 INTERNAL_ERROR` and records
+`FAILED` / `PERSISTENCE_ERROR` / `reviewCount: 0` when the database remains available.
 
 ---
 

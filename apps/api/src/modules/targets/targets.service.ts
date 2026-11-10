@@ -6,6 +6,7 @@ import type { NewAnalysisTarget } from './targets.repository.js';
 
 export interface TargetsRepository extends OwnedTargetLookup {
   create(ownerId: string, target: NewAnalysisTarget): Promise<AnalysisTarget>;
+  deleteById(ownerId: string, targetId: string): Promise<{ count: number }>;
   findMany(ownerId: string, take?: number): Promise<AnalysisTarget[]>;
 }
 
@@ -43,9 +44,14 @@ export function createTargetsService({
       return repository.findMany(ownerId, RECENT_TARGET_LIMIT);
     },
 
-    /** The owned target, or `NOT_FOUND`. See owned-target.ts. */
-    getOwnedTargetOrThrow(ownerId: string, targetId: string | undefined) {
+    /** The owned target, or `NOT_FOUND` (S1-013, see owned-target.ts). */
+    getOwned(ownerId: string, targetId: string) {
       return getOwnedTargetOrThrow(repository, ownerId, targetId);
+    },
+
+    async deleteOwned(ownerId: string, targetId: string) {
+      const result = await repository.deleteById(ownerId, targetId);
+      if (result.count === 0) throw new AppError('NOT_FOUND', 'Analysis target not found.');
     },
   };
 }

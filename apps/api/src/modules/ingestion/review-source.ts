@@ -1,5 +1,10 @@
 import type { IngestionErrorCode } from '@reviewlens/shared';
 
+/** Sources can report fetch failures, but cannot know if a later DB save failed.
+ * Keep PERSISTENCE_ERROR on the run contract, not on provider results.
+ */
+export type SourceOutcomeCode = Exclude<IngestionErrorCode, 'PERSISTENCE_ERROR'>;
+
 /**
  * One review as extracted from the source, before normalization (S1-020).
  * Fields the source did not supply, or supplied in an unusable form, are `null`.
@@ -32,9 +37,9 @@ export type FetchReviewsResult =
       place: SourcePlace;
       reviews: RawReview[];
       /** Set when a later page failed and the reviews collected so far are returned. */
-      stoppedEarly?: IngestionErrorCode;
+      stoppedEarly?: SourceOutcomeCode;
     }
-  | { ok: false; errorCode: IngestionErrorCode };
+  | { ok: false; errorCode: SourceOutcomeCode };
 
 export interface FetchReviewsInput {
   sourceUrl: string;

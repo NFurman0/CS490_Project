@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { PrismaClient, ReviewPlatform } from '@prisma/client';
+import { ReviewPlatform } from '@prisma/client';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTargetsRouter } from '../../src/modules/targets/targets.routes.js';
@@ -8,24 +7,11 @@ import { createTargetsRepository } from '../../src/modules/targets/targets.repos
 import { createTargetsService } from '../../src/modules/targets/targets.service.js';
 import { createUsersRepository } from '../../src/modules/users/users.repository.js';
 import { createTestApp } from '../helpers/test-app.js';
+import { hasTestDatabase, resetDatabase, testPrisma } from '../helpers/test-database.js';
 
-const testEnvPath = existsSync('.env.test') ? '.env.test' : 'apps/api/.env.test';
-if (existsSync(testEnvPath)) {
-  delete process.env.DATABASE_URL;
-  process.loadEnvFile(testEnvPath);
-}
-
-const databaseUrl = process.env.DATABASE_URL;
-if (databaseUrl && new URL(databaseUrl).pathname !== '/reviewlens_test') {
-  throw new Error(
-    'AnalysisTarget integration tests require the dedicated reviewlens_test database.',
-  );
-}
-const prisma = new PrismaClient({
-  datasources: {
-    db: { url: databaseUrl ?? 'postgresql://reviewlens:reviewlens@localhost:5433/reviewlens_test' },
-  },
-});
+// Use the shared, guarded test client: this suite deletes data before each
+// case, so its previous stand-alone Prisma client must not bypass the guard.
+const prisma = testPrisma;
 const targetsRepository = createTargetsRepository(prisma);
 const users = createUsersRepository(prisma);
 
@@ -49,7 +35,7 @@ function createTargetsApp({
   });
 }
 
-describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
+describe.skipIf(!hasTestDatabase)('AnalysisTarget persistence', () => {
   let ownerAId: string;
   let ownerBId: string;
   let ownerAClerkUserId: string;
@@ -60,8 +46,7 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
   });
 
   beforeEach(async () => {
-    await prisma.analysisTarget.deleteMany();
-    await prisma.user.deleteMany();
+    await resetDatabase();
     ownerAClerkUserId = `clerk-${randomUUID()}`;
     ownerBClerkUserId = `clerk-${randomUUID()}`;
     const [ownerA, ownerB] = await Promise.all([
@@ -93,6 +78,91 @@ describe.skipIf(!databaseUrl)('AnalysisTarget persistence', () => {
     });
     await expect(targetsRepository.findById(ownerBId, target.id)).resolves.toBeNull();
     expect(await prisma.analysisTarget.count()).toBe(1);
+  });
+
+  it('lets the owner read a target but gives another user the same 404 as a missing ID', async () => {
+    const target = await targetsRepository.create(ownerAId, {
+      name: "Joe's Pizza",
+      platform: ReviewPlatform.GOOGLE_MAPS,
+      sourceUrl: 'https://maps.google.com/?cid=123456',
+    });
+    const asA = createTargetsApp({
+      as: ownerAClerkUserId,
+      validateSourceUrl: vi.fn(async () => true),
+    });
+    const asB = createTargetsApp({
+      as: ownerBClerkUserId,
+      validateSourceUrl: vi.fn(async () => true),
+    });
+
+    const owned = await request(asA).get(`/api/analysis-targets/${target.id}`).expect(200);
+    expect(owned.body.data).toMatchObject({
+      id: target.id,
+      name: target.name,
+      platform: 'google_maps',
+      sourceUrl: target.sourceUrl,
+    });
+    expect(owned.body.data).not.toHaveProperty('ownerId');
+
+    const denied = await request(asB).get(`/api/analysis-targets/${target.id}`).expect(404);
+    const missing = await request(asB).get(`/api/analysis-targets/${randomUUID()}`).expect(404);
+    expect(denied.body.error.code).toBe('NOT_FOUND');
+    expect(denied.body.error.message).toBe(missing.body.error.message);
+    expect(denied.body).not.toHaveProperty('data');
+    expect(JSON.stringify(denied.body)).not.toContain(target.name);
+    expect(JSON.stringify(denied.body)).not.toContain(target.sourceUrl);
+  });
+
+  it('denies another user a delete and leaves the target intact', async () => {
+    const target = await targetsRepository.create(ownerAId, {
+      name: "Joe's Pizza",
+      platform: ReviewPlatform.GOOGLE_MAPS,
+      sourceUrl: 'https://maps.google.com/?cid=123456',
+    });
+    const asA = createTargetsApp({
+      as: ownerAClerkUserId,
+      validateSourceUrl: vi.fn(async () => true),
+    });
+    const asB = createTargetsApp({
+      as: ownerBClerkUserId,
+      validateSourceUrl: vi.fn(async () => true),
+    });
+
+    const denied = await request(asB).delete(`/api/analysis-targets/${target.id}`).expect(404);
+    expect(denied.body.error.code).toBe('NOT_FOUND');
+    expect(denied.body).not.toHaveProperty('data');
+    await expect(targetsRepository.findById(ownerAId, target.id)).resolves.toMatchObject({
+      id: target.id,
+      name: target.name,
+    });
+
+    await request(asA).delete(`/api/analysis-targets/${target.id}`).expect(204);
+    await expect(targetsRepository.findById(ownerAId, target.id)).resolves.toBeNull();
+  });
+
+  it('requires authentication before reading or deleting a target', async () => {
+    const target = await targetsRepository.create(ownerAId, {
+      name: "Joe's Pizza",
+      platform: ReviewPlatform.GOOGLE_MAPS,
+      sourceUrl: 'https://maps.google.com/?cid=123456',
+    });
+    const signedOut = createTargetsApp({ as: null, validateSourceUrl: vi.fn(async () => true) });
+
+    await request(signedOut).get(`/api/analysis-targets/${target.id}`).expect(401);
+    await request(signedOut).delete(`/api/analysis-targets/${target.id}`).expect(401);
+    await expect(targetsRepository.findById(ownerAId, target.id)).resolves.not.toBeNull();
+  });
+
+  it('treats malformed target IDs as missing targets without querying a UUID column', async () => {
+    const app = createTargetsApp({
+      as: ownerAClerkUserId,
+      validateSourceUrl: vi.fn(async () => true),
+    });
+
+    const read = await request(app).get('/api/analysis-targets/not-a-uuid').expect(404);
+    const remove = await request(app).delete('/api/analysis-targets/not-a-uuid').expect(404);
+    expect(read.body.error.code).toBe('NOT_FOUND');
+    expect(remove.body.error.message).toBe(read.body.error.message);
   });
 
   it('lists only each authenticated owner’s targets in newest-created order', async () => {

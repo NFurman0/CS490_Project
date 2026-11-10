@@ -12,6 +12,7 @@ import {
   INGESTION_RUNS_PATH,
 } from '../../src/modules/ingestion/ingestion.routes.js';
 import { createIngestionService } from '../../src/modules/ingestion/ingestion.service.js';
+import { createReviewsRepository } from '../../src/modules/reviews/reviews.repository.js';
 import { createTargetsRepository } from '../../src/modules/targets/targets.repository.js';
 import { createUsersRepository } from '../../src/modules/users/users.repository.js';
 import { createTestApp } from '../helpers/test-app.js';
@@ -41,6 +42,8 @@ function appFor(clerkUserId: string | null, result: FetchReviewsResult = succeed
   const service = createIngestionService({
     targets,
     runs: createIngestionRunsRepository(testPrisma),
+    // Unlike the unit-test fake, this writes real rows to the isolated test DB.
+    reviews: createReviewsRepository(testPrisma),
     reviewSource: { fetchReviews },
     maxReviewsPerRun: 50,
     logger: createLogger('silent'),
@@ -64,7 +67,7 @@ async function targetOwnedBy(clerkUserId: string) {
   });
 }
 
-describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestion-runs', () => {
+describe.skipIf(!hasTestDatabase)('analysis target ingestion run routes', () => {
   beforeEach(async () => {
     await resetDatabase();
   });
@@ -103,6 +106,51 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
       where: { id: res.body.data.id },
     });
     expect(saved).toMatchObject({ targetId: target.id, status: 'SUCCEEDED', reviewCount: 2 });
+  });
+
+  it('counts only normalized reviews in the recorded run', async () => {
+    // The count must match rows that made it through normalization and insertion.
+    const target = await targetOwnedBy('clerk_a');
+    if (!succeeded.ok) throw new Error('expected fixture reviews');
+    const { app } = appFor('clerk_a', {
+      ...succeeded,
+      reviews: [succeeded.reviews[0]!, { ...succeeded.reviews[1]!, text: null }],
+    });
+
+    const res = await request(app).post(runsUrl(target.id)).expect(201);
+
+    expect(res.body.data).toMatchObject({ status: 'succeeded', errorCode: null, reviewCount: 1 });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
+      where: { id: res.body.data.id },
+    });
+    expect(saved).toMatchObject({ status: 'SUCCEEDED', reviewCount: 1 });
+  });
+
+  it('records SOURCE_NO_REVIEWS when all fetched reviews fail normalization', async () => {
+    // A valid request still creates a run (HTTP 201), but the run must fail
+    // instead of claiming success merely because the source returned records.
+    const target = await targetOwnedBy('clerk_a');
+    if (!succeeded.ok) throw new Error('expected fixture reviews');
+    const { app } = appFor('clerk_a', {
+      ...succeeded,
+      reviews: succeeded.reviews.map((review) => ({ ...review, text: null })),
+    });
+
+    const res = await request(app).post(runsUrl(target.id)).expect(201);
+
+    expect(res.body.data).toMatchObject({
+      status: 'failed',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+    });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
+      where: { id: res.body.data.id },
+    });
+    expect(saved).toMatchObject({
+      status: 'FAILED',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+    });
   });
 
   it("returns 404 for another user's target before creating a run or calling the source", async () => {
@@ -161,5 +209,76 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
       where: { id: res.body.data.id },
     });
     expect(saved).toMatchObject({ status: 'FAILED', errorCode: 'PROVIDER_QUOTA_EXHAUSTED' });
+  });
+
+  it('returns no current run for an owned target that has not started ingestion', async () => {
+    const target = await targetOwnedBy('clerk_a');
+    const { app } = appFor('clerk_a');
+
+    const response = await request(app)
+      .get(`${runsUrl(target.id)}/latest`)
+      .expect(200);
+
+    expect(response.body).toEqual({ data: null });
+  });
+
+  it('returns the latest persisted ingestion state for the owner', async () => {
+    const target = await targetOwnedBy('clerk_a');
+    await testPrisma.ingestionRun.create({
+      data: {
+        targetId: target.id,
+        status: 'SUCCEEDED',
+        reviewCount: 2,
+        startedAt: new Date('2026-11-01T00:00:00Z'),
+        completedAt: new Date('2026-11-01T00:01:00Z'),
+      },
+    });
+    const latest = await testPrisma.ingestionRun.create({
+      data: {
+        targetId: target.id,
+        status: 'FAILED',
+        errorCode: 'PROVIDER_QUOTA_EXHAUSTED',
+        startedAt: new Date('2026-11-02T00:00:00Z'),
+        completedAt: new Date('2026-11-02T00:01:00Z'),
+      },
+    });
+
+    const response = await request(appFor('clerk_a').app)
+      .get(`${runsUrl(target.id)}/latest`)
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      id: latest.id,
+      targetId: target.id,
+      status: 'failed',
+      errorCode: 'PROVIDER_QUOTA_EXHAUSTED',
+      reviewCount: 0,
+    });
+  });
+
+  it('does not expose an ingestion run to another user or a signed-out visitor', async () => {
+    const target = await targetOwnedBy('clerk_a');
+    await testPrisma.ingestionRun.create({ data: { targetId: target.id, status: 'RUNNING' } });
+
+    const denied = await request(appFor('clerk_b').app)
+      .get(`${runsUrl(target.id)}/latest`)
+      .expect(404);
+    const missing = await request(appFor('clerk_b').app)
+      .get(`${runsUrl(randomUUID())}/latest`)
+      .expect(404);
+    await request(appFor(null).app)
+      .get(`${runsUrl(target.id)}/latest`)
+      .expect(401);
+
+    expect(denied.body.error.message).toBe(missing.body.error.message);
+    expect(denied.body).not.toHaveProperty('data');
+  });
+
+  it('treats a malformed target ID as missing before querying ingestion runs', async () => {
+    const response = await request(appFor('clerk_a').app)
+      .get(`${runsUrl('not-a-uuid')}/latest`)
+      .expect(404);
+
+    expect(response.body.error.code).toBe('NOT_FOUND');
   });
 });

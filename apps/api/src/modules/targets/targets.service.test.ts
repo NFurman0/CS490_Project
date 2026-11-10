@@ -22,6 +22,7 @@ function createService(validateSourceUrl: (sourceUrl: string) => Promise<boolean
     ),
     findMany: vi.fn(async () => []),
     findById: vi.fn(async () => null),
+    deleteById: vi.fn(async () => ({ count: 0 })),
   };
   return { service: createTargetsService({ repository, validateSourceUrl }), repository };
 }
@@ -60,13 +61,17 @@ describe('createTargetsService', () => {
     expect(repository.findMany).toHaveBeenNthCalledWith(2, 'owner-b', 5);
   });
 
-  it('looks up a single target scoped to the authenticated owner', async () => {
+  it('uses the owner in single-target reads and deletes', async () => {
     const { service, repository } = createService(async () => true);
+    // A real UUID: the shared ownership guard rejects malformed IDs before any lookup.
     const targetId = '22222222-2222-4222-8222-222222222222';
-
-    await expect(service.getOwnedTargetOrThrow('owner-b', targetId)).rejects.toMatchObject({
+    await expect(service.getOwned('owner-a', targetId)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
-    expect(repository.findById).toHaveBeenCalledWith('owner-b', targetId);
+    await expect(service.deleteOwned('owner-b', targetId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    expect(repository.findById).toHaveBeenCalledWith('owner-a', targetId);
+    expect(repository.deleteById).toHaveBeenCalledWith('owner-b', targetId);
   });
 });

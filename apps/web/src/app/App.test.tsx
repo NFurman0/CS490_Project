@@ -31,10 +31,20 @@ function CurrentLocation() {
 function renderAt(path: string) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const pathname = new URL(String(input)).pathname;
-    const data =
-      pathname.endsWith('/analysis-targets') || pathname.endsWith('/analysis-targets/recent')
-        ? []
-        : { authenticated: true };
+    let data: unknown = { authenticated: true };
+    if (pathname.endsWith('/analysis-targets') || pathname.endsWith('/analysis-targets/recent')) {
+      data = [];
+    } else if (pathname.endsWith('/analysis-targets/target-1')) {
+      data = {
+        id: 'target-1',
+        name: 'My coffee shop',
+        platform: 'google_maps',
+        sourceUrl: 'https://maps.google.com/?cid=123',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+    } else if (pathname.endsWith('/analysis-targets/target-1/ingestion-runs/latest')) {
+      data = null;
+    }
     return new Response(JSON.stringify({ data }), { status: 200 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -89,6 +99,23 @@ describe('protected pages', () => {
     expect(await screen.findByText('Your targets will appear here.')).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer session-token');
+  });
+
+  it('protects direct navigation to one target workspace', async () => {
+    const signedOut = renderAt('/analysis-targets/target-1');
+
+    expect(location()).toBe('/?returnTo=%2Fanalysis-targets%2Ftarget-1');
+    expect(signedOut.fetchMock).not.toHaveBeenCalled();
+
+    signedOut.unmount();
+    clerk.isSignedIn = true;
+    const signedIn = renderAt('/analysis-targets/target-1');
+
+    expect(await screen.findByRole('heading', { name: 'My coffee shop' })).toBeInTheDocument();
+    expect(signedIn.fetchMock).toHaveBeenCalledWith(
+      new URL('http://localhost:3000/api/analysis-targets/target-1'),
+      expect.any(Object),
+    );
   });
 
   it('places the secondary view-all action before create target in the signed-in sidebar', () => {

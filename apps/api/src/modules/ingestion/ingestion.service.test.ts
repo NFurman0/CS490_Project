@@ -5,6 +5,7 @@ import { createLogger } from '../../lib/logger.js';
 import type { FinishedRun, IngestionRunsRepository } from './ingestion-runs.repository.js';
 import { createIngestionService, type OwnedTargetLookup } from './ingestion.service.js';
 import type { FetchReviewsResult, RawReview, ReviewSource } from './review-source.js';
+import type { ReviewsRepository } from '../reviews/reviews.repository.js';
 
 const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const TARGET_ID = '22222222-2222-4222-8222-222222222222';
@@ -57,6 +58,10 @@ function fakeRuns() {
       rows.set(runId, run);
       return run;
     }),
+    findLatest: vi.fn(
+      async (targetId: string) =>
+        [...rows.values()].filter((run) => run.targetId === targetId).at(-1) ?? null,
+    ),
   };
   return { repo, rows };
 }
@@ -68,6 +73,18 @@ function setup({
 } = {}) {
   const targets: OwnedTargetLookup = { findById: vi.fn(async () => found) };
   const runs = fakeRuns();
+  // A fake lets service tests check decisions (which reviews/counts to save).
+  // It cannot prove rows exist in PostgreSQL; reviews.test.ts does that.
+  const reviews: ReviewsRepository = {
+    findByTarget: vi.fn(async () => []),
+    saveBatchAndFinishRun: vi.fn(async (_ownerId, _targetId, runId, batch, stoppedEarly) =>
+      runs.repo.finish(runId, {
+        status: 'SUCCEEDED',
+        errorCode: stoppedEarly,
+        reviewCount: batch.length,
+      }),
+    ),
+  };
   const fetchReviews = vi.fn<ReviewSource['fetchReviews']>(async () => {
     if (result instanceof Error) throw result;
     return result;
@@ -75,14 +92,36 @@ function setup({
   const service = createIngestionService({
     targets,
     runs: runs.repo,
+    reviews,
     reviewSource: { fetchReviews },
     maxReviewsPerRun: 25,
     logger: createLogger('silent'),
   });
-  return { service, targets, runs, fetchReviews };
+  return { service, targets, runs, reviews, fetchReviews };
 }
 
 const place = { title: "Joe's Pizza", address: null, totalReviews: 3 };
+
+describe('latestRun', () => {
+  it('checks ownership before reading any ingestion run', async () => {
+    const { service, targets, runs, fetchReviews } = setup({ found: null });
+
+    await expect(service.latestRun(OWNER_ID, TARGET_ID)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      httpStatus: 404,
+    });
+    expect(targets.findById).toHaveBeenCalledWith(OWNER_ID, TARGET_ID);
+    expect(runs.repo.findLatest).not.toHaveBeenCalled();
+    expect(fetchReviews).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the owned target has no ingestion run', async () => {
+    const { service, runs } = setup();
+
+    await expect(service.latestRun(OWNER_ID, TARGET_ID)).resolves.toBeNull();
+    expect(runs.repo.findLatest).toHaveBeenCalledWith(TARGET_ID);
+  });
+});
 
 describe('startIngestion', () => {
   it('rejects a missing or not-owned target before creating a run or calling the source', async () => {
@@ -118,9 +157,15 @@ describe('startIngestion', () => {
     expect(fetchReviews).toHaveBeenCalledWith({ sourceUrl: SOURCE_URL, maxReviews: 25 });
   });
 
-  it('records a succeeded run with the number of reviews returned', async () => {
+  it('records a succeeded run with the number of usable normalized reviews', async () => {
+    // Three fetched records, one invalid: this catches the old raw-array count.
+    // The fractional rating on the last record must still count as valid.
     const { service, runs } = setup({
-      result: { ok: true, place, reviews: [rawReview(1), rawReview(2), rawReview(3)] },
+      result: {
+        ok: true,
+        place,
+        reviews: [rawReview(1), { ...rawReview(2), text: null }, { ...rawReview(3), rating: 4.5 }],
+      },
     });
 
     const run = await service.startIngestion(OWNER_ID, TARGET_ID);
@@ -130,18 +175,63 @@ describe('startIngestion', () => {
       targetId: TARGET_ID,
       status: 'SUCCEEDED',
       errorCode: null,
-      reviewCount: 3,
+      reviewCount: 2,
       completedAt: expect.any(Date),
     });
   });
 
-  it.each(INGESTION_ERROR_CODES)('records a failed run with zero reviews for %s', async (code) => {
-    const { service } = setup({ result: { ok: false, errorCode: code } });
-
+  it('fails with SOURCE_NO_REVIEWS when every returned record is unusable', async () => {
+    // `result.ok` says SerpApi fetched a page, not that any Review is usable.
+    const { service, runs } = setup({
+      result: {
+        ok: true,
+        place,
+        reviews: [
+          { ...rawReview(1), text: null },
+          { ...rawReview(2), rating: NaN },
+        ],
+      },
+    });
     const run = await service.startIngestion(OWNER_ID, TARGET_ID);
 
-    expect(run).toMatchObject({ status: 'FAILED', errorCode: code, reviewCount: 0 });
+    expect(runs.repo.start).toHaveBeenCalledWith(TARGET_ID);
+    expect(run).toMatchObject({
+      status: 'FAILED',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+      completedAt: expect.any(Date),
+    });
   });
+
+  it('reports SOURCE_NO_REVIEWS instead of a paging error if no collected review is usable', async () => {
+    // The partial-page code cannot imply success when zero reviews survive.
+    const { service } = setup({
+      result: {
+        ok: true,
+        place,
+        reviews: [{ ...rawReview(1), rating: null }],
+        stoppedEarly: 'PROVIDER_TIMEOUT',
+      },
+    });
+
+    expect(await service.startIngestion(OWNER_ID, TARGET_ID)).toMatchObject({
+      status: 'FAILED',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+    });
+  });
+
+  // PERSISTENCE_ERROR is generated after a fetch, never supplied by a source.
+  it.each(INGESTION_ERROR_CODES.filter((code) => code !== 'PERSISTENCE_ERROR'))(
+    'records a failed run with zero reviews for %s',
+    async (code) => {
+      const { service } = setup({ result: { ok: false, errorCode: code } });
+
+      const run = await service.startIngestion(OWNER_ID, TARGET_ID);
+
+      expect(run).toMatchObject({ status: 'FAILED', errorCode: code, reviewCount: 0 });
+    },
+  );
 
   it('keeps a partial result as succeeded and records why paging stopped', async () => {
     const { service } = setup({
