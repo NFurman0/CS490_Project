@@ -19,7 +19,7 @@ Before writing code, read:
 - [`docs/engineering-standards.md`](docs/engineering-standards.md): Code conventions
 - [`docs/security-guardrails.md`](docs/security-guardrails.md): Ownership, Auth, and Security rules
 - [`docs/ui-ux-standards.md`](docs/ui-ux-standards.md): Interface conventions
-- [`docs/ai-assisted-development.md`](docs/ai-assisted-development.md): Rules for AI-generated code
+- [`docs/AI_assisted_development.md`](docs/AI_assisted_development.md): Rules for AI-generated code
 - [`docs/ingestion-approach.md`](docs/ingestion-approach.md): How reviews are obtained from Google Maps via SerpApi
 
 ## Prerequisites
@@ -60,6 +60,13 @@ This starts both apps:
 If configuration is missing or invalid, the API stops with a message naming each variable to fix, and the web app shows a configuration error screen instead of the app.
 
 To stop the database: `npm run db:down`. Your data is kept in a Docker volume between runs.
+
+## Preparing the Sprint 1 demo
+
+Use the [demo setup and rehearsal guide](docs/demo-setup.md) for macOS/Linux and Windows setup,
+database-backed verification, a repeatable walkthrough, and the evidence checklist.
+Automated checks and live demonstration results are recorded separately; passing tests alone
+does not establish that the full ingestion flow is ready.
 
 ## Signing in locally
 
