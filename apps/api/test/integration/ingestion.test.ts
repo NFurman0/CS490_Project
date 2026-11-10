@@ -12,6 +12,7 @@ import {
   INGESTION_RUNS_PATH,
 } from '../../src/modules/ingestion/ingestion.routes.js';
 import { createIngestionService } from '../../src/modules/ingestion/ingestion.service.js';
+import { createReviewsRepository } from '../../src/modules/reviews/reviews.repository.js';
 import { createTargetsRepository } from '../../src/modules/targets/targets.repository.js';
 import { createUsersRepository } from '../../src/modules/users/users.repository.js';
 import { createTestApp } from '../helpers/test-app.js';
@@ -41,6 +42,8 @@ function appFor(clerkUserId: string | null, result: FetchReviewsResult = succeed
   const service = createIngestionService({
     targets,
     runs: createIngestionRunsRepository(testPrisma),
+    // Unlike the unit-test fake, this writes real rows to the isolated test DB.
+    reviews: createReviewsRepository(testPrisma),
     reviewSource: { fetchReviews },
     maxReviewsPerRun: 50,
     logger: createLogger('silent'),
@@ -106,8 +109,7 @@ describe.skipIf(!hasTestDatabase)('analysis target ingestion run routes', () => 
   });
 
   it('counts only normalized reviews in the recorded run', async () => {
-    // Inspect both the HTTP response and the persisted IngestionRun. No Review
-    // rows exist yet: S1-022 will save them; this tests the recorded count.
+    // The count must match rows that made it through normalization and insertion.
     const target = await targetOwnedBy('clerk_a');
     if (!succeeded.ok) throw new Error('expected fixture reviews');
     const { app } = appFor('clerk_a', {

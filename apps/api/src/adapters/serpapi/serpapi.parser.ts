@@ -1,6 +1,9 @@
-import type { IngestionErrorCode } from '@reviewlens/shared';
 import { z } from 'zod';
-import type { RawReview, SourcePlace } from '../../modules/ingestion/review-source.js';
+import type {
+  RawReview,
+  SourceOutcomeCode,
+  SourcePlace,
+} from '../../modules/ingestion/review-source.js';
 
 /**
  * The parts of a SerpApi `google_maps_reviews` response we rely on.
@@ -68,11 +71,12 @@ export function extractReview(value: unknown): RawReview {
 /**
  * Maps a SerpApi failure to an ingestion outcome code (Engineering Standards §6.4).
  * `errorText` is SerpApi's own message: used for classification only, never shown or stored.
+ * The source-only return type cannot mistake a provider error for a DB save error.
  */
 export function classifyProviderError(
   httpStatus: number,
   errorText: string | null,
-): IngestionErrorCode {
+): SourceOutcomeCode {
   const text = errorText ?? '';
   if (httpStatus === 429 || /run out of searches|plan.*limit|hourly.*limit/i.test(text)) {
     return 'PROVIDER_QUOTA_EXHAUSTED';

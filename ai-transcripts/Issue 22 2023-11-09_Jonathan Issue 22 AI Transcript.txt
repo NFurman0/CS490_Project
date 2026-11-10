@@ -1,0 +1,110 @@
+ISSUE 22 — CONSOLIDATED AI IMPLEMENTATION PROMPT
+
+This is a consolidated prompt covering the requests that guided implementation
+and review of S1-022. It is not an export of the complete AI conversation.
+
+Implement S1-022, “Persist Ingested Reviews with Target Ownership,” in
+CS490_Project on the jonathan/S1-022 branch. The outcome is that normalized
+Google Maps reviews are stored under the intended AnalysisTarget and can later
+be retrieved for that target without mixing targets or crossing users. Follow
+issue #22 and rules S1-BR-007 through S1-BR-010 and S1-BR-022. Work with me
+as a learner: before meaningful changes, explain what the existing code does,
+what you will change, why, and possible failure cases. Explain the changed
+files, database transaction, commands, and test evidence afterward in simple
+language. Add comments where ownership, normalization-to-storage mapping,
+atomicity, or failure handling is not obvious. Do not commit, push, or open a
+PR without my explicit request.
+
+First verify the branch, working tree, live issue, main branch, and S1-013 PR
+status. Read README.md, docs/engineering-standards.md,
+docs/security-guardrails.md, docs/ingestion-approach.md, and
+docs/AI_assisted_development.md before coding. Read the relevant ingestion,
+normalizer, adapter, target, Prisma, shared-contract, and test files and use
+the installed Prisma version. Do not inspect or share real .env contents,
+secrets, tokens, or private user reviews. Protect the S1-021 normalization
+work while integrating future S1-013 ownership changes; its ownership helper
+may not yet be present locally.
+
+The existing ReviewSource supplies RawReview fields. The normalizer keeps
+reviews with usable trimmed text and finite ratings from 1 to 5, preserving
+fractions such as 4.5; it drops invalid records individually and reports
+SOURCE_NO_REVIEWS if none survive. Ingestion already checks target ownership,
+creates an IngestionRun, fetches and normalizes reviews, but initially counted
+reviews without saving them. Implement the missing persistence step without
+changing the normalizer's SOURCE_NO_REVIEWS behavior or introducing Sprint 1
+deduplication.
+
+Add a Review model and a NEW migration, leaving existing migrations intact.
+Give each Review a non-null targetId foreign key to AnalysisTarget, cascading
+deletion, an inverse target relation, and a targetId index. Preserve fractional
+ratings. Store normalized text, nullable sourceReviewId and useful optional
+reviewerName, publishedAt, reviewUrl, and JSON metadata. Keep a createdAt
+value for stable ordering. The parent target supplies ownership: do not add
+a second Review ownerId, a run relation without a requirement, or a uniqueness
+rule that rejects absent IDs or repeat ingestion. Preserve a validated
+publishedAt source string exactly, including date-only values such as
+2026-11-08 and timestamps with offsets; do not silently rewrite it to UTC.
+
+Use routes -> service -> repository layering. Build explicit Review insert and
+target-filtered read operations. Repository reads and writes require the
+verified owner's internal ID. Before writing, confirm the target belongs to
+that owner, and use the checked target ID rather than client-supplied review
+data. Filter reads by both targetId and the target's owner in SQL. Add a
+protected GET /api/analysis-targets/:targetId/reviews with a shared Zod
+response contract and { data: [] } list envelope. Check ownership of the
+parent before reading children. Treat missing, malformed, and not-owned
+target IDs alike with 404 NOT_FOUND and no leaked review data; anonymous
+requests receive 401. Do not create a public review-creation endpoint or
+unrelated UI work.
+
+Connect normalized reviews to persistence. A successful run's reviewCount
+must equal the number of rows actually inserted, not the raw or normalized
+array length. Preserve the partial-page behavior: reviews collected before
+a later provider failure may be saved under a SUCCEEDED run with stoppedEarly
+as its errorCode. Provider failures and batches with zero usable reviews must
+add no rows and must preserve earlier rows. Fetch outside a database
+transaction; insert a batch and mark its run SUCCEEDED atomically so neither
+can commit alone. If persistence fails, return a generic 500 INTERNAL_ERROR
+without exposing Prisma details and record FAILED, reviewCount 0, and the
+agreed PERSISTENCE_ERROR code when the database is available. Keep this code
+in the shared run contract and Prisma enum; do not mislabel a database failure
+PROVIDER_ERROR. Narrow provider/source result types so a provider cannot
+return PERSISTENCE_ERROR. Do not change the provider's runtime outcomes.
+
+Wire the repository, services, and protected router in production and tests.
+Keep the test database's live connected-database guard before deleting any
+rows. Apply the new migration only to an intended database. For PostgreSQL
+tests, first confirm the isolated localhost:5433/reviewlens_test configuration
+without printing credentials, then use the dedicated test database.
+
+Add meaningful PostgreSQL-backed ingestion and GET tests with fake identities
+and a fake ReviewSource. Verify HTTP responses AND real database rows for:
+successful save; trimmed text and rating 4.5 read-back; the intended targetId;
+mixed valid/invalid batches and saved-row count; present and absent optional
+fields; preservation of offset timestamps AND an exact date-only publishedAt
+value such as 2026-11-08 in both the saved row and GET response; isolation
+between two targets owned by the same user; empty target GET; foreign,
+missing, and malformed target 404; anonymous GET and POST 401; foreign POST
+with no provider call, run, or new reviews; provider and all-invalid failures
+preserving previous reviews; partial-page success; an injected post-
+normalization persistence failure with no partial batch or false saved count;
+and target-delete cascade that leaves other targets' reviews intact.
+Explain what fake-provider tests establish and what real Clerk verification
+remains manual.
+
+Add simple, useful comments throughout the S1-022 code to explain the flow
+and non-obvious choices, particularly target ownership, database scoping,
+source-versus-run error codes, normalization-to-storage mapping, date strings,
+batch transactions, failure reporting, test isolation, and why tests read
+PostgreSQL rows. Avoid comments that merely narrate syntax. Do not rewrite
+an already-applied migration just to add comments; explain its decisions in
+the Prisma schema and repository instead.
+
+Only format S1-022 TypeScript files when needed. Do not mass-format unrelated
+files or change shared Git/Prettier settings. Check for real content changes
+after any Windows line-ending formatting pass. Run focused tests and relevant
+repository checks (lint, format check, typecheck, tests, and build), report
+passes, failures, and skips honestly, and review the diff against origin/main
+for unrelated changes. Do not treat skipped database tests as persistence
+evidence. Before PR work, remember the complete AI transcript requirement in
+docs/AI_assisted_development.md, plus CI and peer review.

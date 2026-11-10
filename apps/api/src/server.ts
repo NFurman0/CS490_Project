@@ -15,6 +15,9 @@ import {
   INGESTION_RUNS_PATH,
 } from './modules/ingestion/ingestion.routes.js';
 import { createIngestionService } from './modules/ingestion/ingestion.service.js';
+import { createReviewsRepository } from './modules/reviews/reviews.repository.js';
+import { createReviewsRouter, REVIEWS_PATH } from './modules/reviews/reviews.routes.js';
+import { createReviewsService } from './modules/reviews/reviews.service.js';
 import { createTargetsRouter } from './modules/targets/targets.routes.js';
 import { createTargetsRepository } from './modules/targets/targets.repository.js';
 import { createTargetsService } from './modules/targets/targets.service.js';
@@ -46,6 +49,9 @@ const identity = createClerkIdentityProvider({
 const users = createUsersRepository(prisma);
 const reviewSource = createSerpApiReviewSource({ apiKey: env.SERPAPI_API_KEY, logger });
 const targetsRepository = createTargetsRepository(prisma);
+// Both the ingestion writer and the owned GET reader use this same DB-backed
+// repository; no endpoint accepts a review or owner ID from a request body.
+const reviewsRepository = createReviewsRepository(prisma);
 const targetsService = createTargetsService({
   repository: targetsRepository,
   validateSourceUrl: async (sourceUrl) =>
@@ -57,6 +63,7 @@ const targetsService = createTargetsService({
 const ingestionService = createIngestionService({
   targets: targetsRepository,
   runs: createIngestionRunsRepository(prisma),
+  reviews: reviewsRepository,
   reviewSource,
   maxReviewsPerRun: env.MAX_REVIEWS_PER_RUN,
   logger,
@@ -69,6 +76,12 @@ const app = createApp({
   extraRouters: [
     { path: '/analysis-targets', router: createTargetsRouter(targetsService) },
     { path: INGESTION_RUNS_PATH, router: createIngestionRouter(ingestionService) },
+    // createApp mounts extraRouters after authentication on /api; the GET
+    // service also checks that the session's user owns the selected target.
+    {
+      path: REVIEWS_PATH,
+      router: createReviewsRouter(createReviewsService(targetsRepository, reviewsRepository)),
+    },
   ],
 });
 
