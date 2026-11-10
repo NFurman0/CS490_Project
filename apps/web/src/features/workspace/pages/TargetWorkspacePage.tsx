@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { IngestionRunResponse } from '@reviewlens/shared';
 import { Link, useParams } from 'react-router';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
-import { FALLBACK_MESSAGE } from '../../../lib/errors';
+import { FALLBACK_MESSAGE, ingestionMessageFor } from '../../../lib/errors';
 import { getLatestIngestionRun, startIngestionRun } from '../../ingestion/api';
 import { getAnalysisTarget, type AnalysisTargetSummary } from '../../targets/api';
 
@@ -38,6 +38,7 @@ export function TargetWorkspacePage() {
   const [loadError, setLoadError] = useState<PageError | null>(null);
   const [startingTargetId, setStartingTargetId] = useState<string | null>(null);
   const [startError, setStartError] = useState<PageError | null>(null);
+  const navigationEpoch = useRef(0);
 
   const currentWorkspace = workspace?.targetId === targetId ? workspace : null;
   const currentLoadError = !targetId
@@ -80,21 +81,67 @@ export function TargetWorkspacePage() {
     void loadWorkspace();
     return () => {
       active = false;
+      // Late POST/refresh responses must not update a workspace after navigation.
+      navigationEpoch.current += 1;
     };
   }, [client, targetId]);
 
   async function handleStartIngestion() {
     if (!targetId || isStarting) return;
     const requestedId = targetId;
+    const previousRunId = currentWorkspace?.run?.id;
+    const epoch = navigationEpoch.current;
+    const isCurrent = () => navigationEpoch.current === epoch;
     setStartingTargetId(requestedId);
     setStartError(null);
     try {
       const run = await startIngestionRun(client, requestedId);
-      setWorkspace((current) =>
-        current?.targetId === requestedId ? { ...current, run, statusError: null } : current,
-      );
+      if (isCurrent()) {
+        setWorkspace((current) =>
+          current?.targetId === requestedId ? { ...current, run, statusError: null } : current,
+        );
+      }
     } catch (error) {
-      setStartError({ targetId: requestedId, message: errorMessage(error) });
+      if (isCurrent()) {
+        setStartError({ targetId: requestedId, message: errorMessage(error) });
+        // The POST may have persisted a failure before returning 500. Hide any
+        // older run until the owned latest-run read confirms what happened.
+        setWorkspace((current) =>
+          current?.targetId === requestedId
+            ? { ...current, run: null, statusError: 'Checking the latest ingestion state…' }
+            : current,
+        );
+        try {
+          const run = await getLatestIngestionRun(client, requestedId);
+          if (isCurrent()) {
+            setWorkspace((current) =>
+              current?.targetId === requestedId
+                ? run?.id === previousRunId && previousRunId
+                  ? {
+                      ...current,
+                      run: null,
+                      // A successful read can still return the run from before this POST.
+                      statusError:
+                        'The latest saved run is from before this request. The outcome of this attempt could not be confirmed. Try again.',
+                    }
+                  : { ...current, run, statusError: null }
+                : current,
+            );
+          }
+        } catch {
+          if (isCurrent()) {
+            setWorkspace((current) =>
+              current?.targetId === requestedId
+                ? {
+                    ...current,
+                    run: null,
+                    statusError: 'Could not confirm the latest ingestion state. Try again.',
+                  }
+                : current,
+            );
+          }
+        }
+      }
     } finally {
       setStartingTargetId((current) => (current === requestedId ? null : current));
     }
@@ -151,10 +198,19 @@ export function TargetWorkspacePage() {
                     <strong>Current state:</strong> {statusLabel(currentWorkspace.run)}
                   </p>
                   {currentWorkspace.run?.status === 'succeeded' && (
-                    <p>Reviews returned from the source: {currentWorkspace.run.reviewCount}</p>
+                    <p>{currentWorkspace.run.reviewCount} reviews saved in this run.</p>
                   )}
+                  {currentWorkspace.run?.status === 'succeeded' &&
+                    currentWorkspace.run.errorCode && (
+                      <p className="form-error-summary" role="alert">
+                        Collection stopped early.{' '}
+                        {ingestionMessageFor(currentWorkspace.run.errorCode)}
+                      </p>
+                    )}
                   {currentWorkspace.run?.status === 'failed' && (
-                    <p>Review collection did not finish. You can try again.</p>
+                    <p className="form-error-summary" role="alert">
+                      {ingestionMessageFor(currentWorkspace.run.errorCode)}
+                    </p>
                   )}
                 </>
               )}
