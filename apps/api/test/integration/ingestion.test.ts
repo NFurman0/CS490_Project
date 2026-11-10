@@ -118,7 +118,9 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
     const res = await request(app).post(runsUrl(target.id)).expect(201);
 
     expect(res.body.data).toMatchObject({ status: 'succeeded', errorCode: null, reviewCount: 1 });
-    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({ where: { id: res.body.data.id } });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
+      where: { id: res.body.data.id },
+    });
     expect(saved).toMatchObject({ status: 'SUCCEEDED', reviewCount: 1 });
   });
 
@@ -139,8 +141,14 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
       errorCode: 'SOURCE_NO_REVIEWS',
       reviewCount: 0,
     });
-    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({ where: { id: res.body.data.id } });
-    expect(saved).toMatchObject({ status: 'FAILED', errorCode: 'SOURCE_NO_REVIEWS', reviewCount: 0 });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
+      where: { id: res.body.data.id },
+    });
+    expect(saved).toMatchObject({
+      status: 'FAILED',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+    });
   });
 
   it("returns 404 for another user's target before creating a run or calling the source", async () => {

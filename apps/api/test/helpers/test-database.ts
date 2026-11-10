@@ -45,10 +45,13 @@ export const testPrisma = new PrismaClient({
 
 /** Removes all rows. Children cascade from users, but are deleted explicitly for clarity. */
 export async function resetDatabase(): Promise<void> {
-  if (!databaseUrl) throw new Error('Database tests require a configured reviewlens_test database.');
+  if (!databaseUrl)
+    throw new Error('Database tests require a configured reviewlens_test database.');
   // Verify the database PostgreSQL actually connected to, before the first
   // DELETE. A URL-path check alone cannot detect a misdirected connection.
-  const [connected] = await testPrisma.$queryRaw<{ name: string }[]>`SELECT current_database() AS name`;
+  const [connected] = await testPrisma.$queryRaw<
+    { name: string }[]
+  >`SELECT current_database() AS name`;
   if (connected?.name !== 'reviewlens_test') {
     throw new Error('Refusing to reset a database other than reviewlens_test.');
   }

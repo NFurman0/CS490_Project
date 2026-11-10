@@ -147,7 +147,10 @@ describe('startIngestion', () => {
       result: {
         ok: true,
         place,
-        reviews: [{ ...rawReview(1), text: null }, { ...rawReview(2), rating: NaN }],
+        reviews: [
+          { ...rawReview(1), text: null },
+          { ...rawReview(2), rating: NaN },
+        ],
       },
     });
 

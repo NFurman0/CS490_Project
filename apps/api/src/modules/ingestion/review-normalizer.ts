@@ -18,8 +18,7 @@ export interface NormalizedReview {
 // The `ok` discriminator forces callers to handle an all-invalid batch instead
 // of interpreting an empty list as a successful ingestion.
 export type NormalizeReviewsResult =
-  | { ok: true; reviews: NormalizedReview[] }
-  | { ok: false; errorCode: 'SOURCE_NO_REVIEWS' };
+  { ok: true; reviews: NormalizedReview[] } | { ok: false; errorCode: 'SOURCE_NO_REVIEWS' };
 
 /** Pure transformation: no database, provider call, or mutation of RawReview inputs. */
 export function normalizeReviews(rawReviews: readonly RawReview[]): NormalizeReviewsResult {
@@ -69,15 +68,17 @@ function validDate(value: string | null): string | null {
 
   // Require YYYY-MM-DD, optionally followed by T time and Z/offset. Parsing
   // alone is too lenient: JavaScript can roll February 30 into March.
-  const match = /^(\d{4}-\d{2}-\d{2})(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d))?$/.exec(
-    date,
-  );
+  const match =
+    /^(\d{4}-\d{2}-\d{2})(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d))?$/.exec(
+      date,
+    );
   if (!match || !Number.isFinite(Date.parse(date))) return null;
   const calendarDay = match[1];
   // Check the written calendar day at UTC midnight, separately from the
   // timestamp's offset (which could move the instant into another UTC day).
   const parsedDay = Date.parse(`${calendarDay}T00:00:00Z`);
-  return Number.isFinite(parsedDay) && new Date(parsedDay).toISOString().slice(0, 10) === calendarDay
+  return Number.isFinite(parsedDay) &&
+    new Date(parsedDay).toISOString().slice(0, 10) === calendarDay
     ? date
     : null;
 }
