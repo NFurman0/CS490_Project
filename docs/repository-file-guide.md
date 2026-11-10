@@ -1,21 +1,23 @@
 # ReviewLens Repository File Guide
 
-Short descriptions of all **140 tracked files** in [NFurman0/CS490_Project](https://github.com/NFurman0/CS490_Project), grouped by directory.
+Short descriptions of all **153 tracked files** in [NFurman0/CS490_Project](https://github.com/NFurman0/CS490_Project), grouped by directory.
 
-**Snapshot:** `main` at [`a2b935a27ccdbae708a4758a2a89c5e9dbc64325`](https://github.com/NFurman0/CS490_Project/tree/a2b935a27ccdbae708a4758a2a89c5e9dbc64325), inspected November 10, 2026. This guide describes the code at that commit, including review normalization from PR #45.
+**Snapshot:** `main` at [`b0d120bcd25469992fbc4a7116308514302ce876`](https://github.com/NFurman0/CS490_Project/tree/b0d120bcd25469992fbc4a7116308514302ce876), inspected November 10, 2026. This includes review normalization, persistence, authorization, and result reporting from PRs #45, #47, #41, and #48.
 
-**Scope:** The complete repository, with database-related files marked **DB**. Generated output, installed dependencies, Git internals, private `.env` files, and this new guide are excluded from the 140-file count. No live database records were queried.
+**Scope:** All 153 tracked file paths in the pinned Git tree, including this guide, with database-related files marked **DB**. Generated output, installed dependencies, Git internals, and private `.env` files are not tracked inventory entries. No live database records were queried for this refresh.
 
 ## Database at a glance
 
 - **PostgreSQL + Prisma:** PostgreSQL stores the data; Prisma defines the models and provides the TypeScript database client.
-- **Three application tables:** `users` maps Clerk identities to internal user IDs; `analysis_targets` stores each user's named Google Maps source; `ingestion_runs` stores an attempt's status, error code, usable-review count, and timestamps.
-- **Relationships:** One user owns many targets; one target has many ingestion runs. Foreign keys use cascading deletes.
-- **Review content is not stored yet:** The current ingestion service fetches and normalizes reviews, then saves the run metadata. There is no `Review` model or review-content migration. `reviewCount` is a count of usable reviews, not saved review rows.
-- **Authorization:** Target repository queries include the authenticated owner's ID. Ingestion checks target ownership before accessing its runs.
-- **Run outcomes:** A succeeded run can still contain an error code if a later provider page fails but usable reviews remain. Ingestion runs inside the POST request, not in a background job.
+- **Four application tables:** `users` maps Clerk identities to internal user IDs; `analysis_targets` stores each user's named Google Maps source; `ingestion_runs` stores attempt status, error code, inserted-review count, and timestamps; `reviews` stores normalized review text, fractional ratings, optional source fields, metadata, and its target association.
+- **Relationships:** One user owns many targets; each target has many ingestion runs and reviews. Foreign keys cascade deletes. Reviews belong to a target, with no ingestion-run foreign key.
+- **Transactional saves:** The review repository inserts a normalized batch and completes the running ingestion attempt in one transaction. Its `reviewCount` is the inserted-row count for that run, not a target's lifetime total. Failed attempts preserve earlier saved reviews.
+- **Retrieval and duplicates:** The authenticated review GET lists all stored reviews for an owned target. Re-ingestion appends rows and can duplicate provider reviews; `sourceReviewId` is optional and has no uniqueness constraint. The workspace displays latest-run status/counts, not review text or a lifetime total.
+- **Authorization:** Target queries include the authenticated owner's ID. The shared owned-target helper rejects missing, malformed and foreign IDs before child access. Review reads and save transactions also enforce ownership in SQL.
+- **Run outcomes:** A succeeded run with an error code means usable reviews were saved after a later provider page failed; the workspace warns that collection stopped early. Save failures attempt to record `PERSISTENCE_ERROR` and return a generic HTTP 500; a database outage can prevent even that failure record. Ingestion runs inside the POST request, not in a background job.
+- **Collection cap:** `MAX_REVIEWS_PER_RUN` defaults to 50 raw adapter records before normalization, not 50 guaranteed saved rows or a fixed number of provider searches.
 
-Start with `apps/api/prisma/schema.prisma`, the two migration files, `apps/api/src/lib/prisma.ts`, and the three `*.repository.ts` files. Database setup is in `docker-compose.yml` and the package scripts; database test protection is in `apps/api/test/helpers/test-database.ts`.
+Start with `apps/api/prisma/schema.prisma`, the three migration files, `apps/api/src/lib/prisma.ts`, and the four `*.repository.ts` files. Database setup is in `docker-compose.yml` and the package scripts; test-database protection is in `apps/api/test/helpers/test-database.ts`. There is no root `db:reset` script.
 
 **DB** below means a file directly defines, configures, accesses, or tests database persistence. Other files may use the API without accessing the database directly.
 
@@ -36,7 +38,7 @@ Start with `apps/api/prisma/schema.prisma`, the two migration files, `apps/api/s
 ## `.github/`: pull requests and automation
 
 - `.github/pull_request_template.md`: Standard PR sections for the story, change summary, test evidence, and security/ownership impact.
-- `.github/workflows/ci.yml` **DB**: Runs lint/format, typecheck, build, and tests; provisions test PostgreSQL and applies migrations for database tests.
+- `.github/workflows/ci.yml` **DB**: Defines the four lint/format, typecheck, build, and test jobs; provisions PostgreSQL and applies migrations for database tests. Workflow execution alone does not establish required-check enforcement; verify the active ruleset or branch protection separately.
 - `.github/workflows/import-sprint-issues.yml`: Manually triggered CSV-to-GitHub issue importer with dry-run mode, label creation, and duplicate-title checks.
 
 ## `.vscode/`: editor recommendations
@@ -54,9 +56,10 @@ Start with `apps/api/prisma/schema.prisma`, the two migration files, `apps/api/s
 
 ## `apps/api/prisma/`: database schema and migrations
 
-- `apps/api/prisma/schema.prisma` **DB**: Defines the PostgreSQL datasource, Prisma client, enums, and `User`, `AnalysisTarget`, and `IngestionRun` models and relationships.
+- `apps/api/prisma/schema.prisma` **DB**: Defines the PostgreSQL datasource, Prisma client, enums, and `User`, `AnalysisTarget`, `IngestionRun`, and `Review` models and relationships.
 - `apps/api/prisma/migrations/20261107204400_init/migration.sql` **DB**: Creates users and targets, the review-platform enum, ownership foreign key, indexes, and nonempty-field constraints.
 - `apps/api/prisma/migrations/20261108120000_ingestion_runs/migration.sql` **DB**: Creates ingestion runs and outcome enums, linking runs to targets and enforcing counts, failed-run error codes, and completion timestamps.
+- `apps/api/prisma/migrations/20261109120000_reviews/migration.sql` **DB**: Adds `PERSISTENCE_ERROR`, creates review storage with a target foreign key and cascade deletion, enforces the rating range, and indexes target IDs.
 
 ## `apps/api/scripts/`: developer utilities
 
@@ -112,6 +115,8 @@ Start with `apps/api/prisma/schema.prisma`, the two migration files, `apps/api/s
 
 ## `apps/api/src/modules/targets/`: analysis targets
 
+- `apps/api/src/modules/targets/owned-target.ts`: Shared ownership guard validating target UUIDs and returning the owned parent; malformed, missing, and foreign IDs all produce `NOT_FOUND`.
+- `apps/api/src/modules/targets/owned-target.test.ts`: Tests owner-scoped lookup, identical not-found behavior, and rejection of malformed IDs before repository access.
 - `apps/api/src/modules/targets/targets.repository.ts` **DB**: Uses Prisma to create, list, find, and delete targets with owner-scoped queries and newest-first ordering.
 - `apps/api/src/modules/targets/targets.service.ts`: Validates Google Maps sources, assigns the supported platform, limits recent targets to five, and enforces owned-target reads/deletes.
 - `apps/api/src/modules/targets/targets.service.test.ts`: Tests source validation, platform assignment, owner scoping, and single-target read/delete behavior using a fake repository.
@@ -121,16 +126,22 @@ Start with `apps/api/prisma/schema.prisma`, the two migration files, `apps/api/s
 
 - `apps/api/src/modules/ingestion/ingestion-runs.repository.ts` **DB**: Creates, finishes, and finds the latest persisted ingestion run; callers must first verify ownership of the parent target.
 - `apps/api/src/modules/ingestion/ingestion.routes.ts`: Exposes start-ingestion and latest-run endpoints under a target, validates UUIDs/body, and serializes run status and timestamps.
-- `apps/api/src/modules/ingestion/ingestion.service.ts`: Verifies ownership, fetches and normalizes reviews, and records run outcomes/counts through the repository; does not save review content.
-- `apps/api/src/modules/ingestion/ingestion.service.test.ts`: Tests ownership-first execution, review caps, normalized counts, provider failures, partial success, and unexpected errors using fake dependencies.
+- `apps/api/src/modules/ingestion/ingestion.service.ts`: Verifies ownership, fetches/normalizes reviews, delegates transactional review saving and successful-run completion, and records source/provider or persistence failures with distinct codes.
+- `apps/api/src/modules/ingestion/ingestion.service.test.ts`: Tests ownership-first execution, configured caps, normalized batches, provider failures, partial results, saved-count propagation, and persistence-failure handling with fake dependencies.
 - `apps/api/src/modules/ingestion/review-source.ts`: Defines provider-independent raw reviews, place information, fetch results, and the injectable `ReviewSource` interface.
 - `apps/api/src/modules/ingestion/review-normalizer.ts`: Trims and validates text, validates ratings without rounding, cleans optional fields, preserves metadata, and rejects batches without usable reviews.
 - `apps/api/src/modules/ingestion/review-normalizer.test.ts`: Tests text/rating validity, fractional ratings, optional dates/URLs, record ordering, empty batches, and nonmutation of input data.
 
+## `apps/api/src/modules/reviews/`: persisted review access
+
+- `apps/api/src/modules/reviews/reviews.repository.ts` **DB**: Reads reviews with target/owner filters and stable ordering; atomically inserts a batch and finishes its owned running attempt using the actual inserted count. It rechecks ownership inside the transaction and does not deduplicate imports.
+- `apps/api/src/modules/reviews/reviews.service.ts`: Requires the owned parent target before requesting its stored reviews.
+- `apps/api/src/modules/reviews/reviews.routes.ts`: Defines authenticated `GET /api/analysis-targets/:targetId/reviews`, validates target IDs, and serializes saved review fields and timestamps in the data envelope.
+
 ## `apps/api/test/helpers/`: test infrastructure
 
 - `apps/api/test/helpers/test-app.ts`: Creates test Express apps with fake identity/user-directory implementations, a silent logger, and injectable feature routes.
-- `apps/api/test/helpers/test-database.ts` **DB**: Configures test Prisma, requires the dedicated test database, checks the connected database before reset, and clears application rows.
+- `apps/api/test/helpers/test-database.ts` **DB**: Configures test Prisma, requires the dedicated test database, checks the connected database before reset, and clears review, ingestion-run, target, and user rows in dependency order.
 - `apps/api/test/helpers/test-database.test.ts` **DB**: Tests acceptance of the dedicated test database URL and rejection of unsafe or malformed alternatives.
 - `apps/api/test/helpers/serpapi-fixtures.ts`: Loads saved provider JSON and builds JSON `Response` objects for network-free adapter tests.
 
@@ -139,8 +150,10 @@ Start with `apps/api/prisma/schema.prisma`, the two migration files, `apps/api/s
 - `apps/api/test/integration/analysis-targets-persistence.test.ts` **DB**: Tests target persistence, constraints, creation/validation, owner-only reads/deletes, and full/recent listing against PostgreSQL.
 - `apps/api/test/integration/app.test.ts`: Tests public health responses, missing routes, and safe formatting of application, validation, and unexpected errors.
 - `apps/api/test/integration/auth.test.ts`: Tests session acceptance/rejection, default route protection, trusted identity, and rejection of spoofed identity headers.
+- `apps/api/test/integration/cross-user-authorization.test.ts` **DB**: Tests owner positive controls, anonymous/cross-user/missing/malformed-target denial, no denied-request writes or provider calls, target-child isolation, and rejection of spoofed owner/target input.
 - `apps/api/test/integration/ingestion.test.ts` **DB**: Tests ingestion HTTP routes, stored run outcomes/counts, latest-run retrieval, normalization effects, and unauthenticated/cross-user denial.
 - `apps/api/test/integration/ownership.test.ts` **DB**: Tests persisted user mapping, concurrent first requests, separate identities, and ownership derived from authentication rather than client fields.
+- `apps/api/test/integration/reviews.test.ts` **DB**: Tests persisted normalized fields and fractional ratings, owner-only review retrieval, per-target separation, inserted counts, preserved prior reviews, partial saves, transaction rollback/persistence failure, and cascade deletion.
 - `apps/api/test/integration/user-mapping.test.ts`: Tests identity-to-internal-user mapping and safe lookup failures using injected user directories rather than a live database.
 
 ## `apps/api/test/fixtures/serpapi/`: saved test inputs
@@ -207,8 +220,8 @@ These files are test inputs, not the application's database or fallback producti
 - `apps/web/src/features/ingestion/api.ts`: API calls to fetch a target's latest ingestion run and start a new one.
 - `apps/web/src/features/workspace/pages/WorkspaceHomePage.tsx`: Lists the signed-in user's targets with workspace links, platform/source details, and loading, empty, or error feedback.
 - `apps/web/src/features/workspace/pages/WorkspaceHomePage.test.tsx`: Tests target-list content, empty state, and safe load-failure messages.
-- `apps/web/src/features/workspace/pages/TargetWorkspacePage.tsx`: Displays an owned target and latest ingestion status/count, starts ingestion, and keeps loading/errors tied to the active target.
-- `apps/web/src/features/workspace/pages/TargetWorkspacePage.test.tsx`: Tests workspace details, ingestion initiation, access denial, failed status loading, and safe start-ingestion errors.
+- `apps/web/src/features/workspace/pages/TargetWorkspacePage.tsx`: Displays the owned target, latest-run inserted count, partial-collection warning, and friendly failure state; starts ingestion and refreshes after a failed POST without claiming an older success as the new outcome. It does not list review content.
+- `apps/web/src/features/workspace/pages/TargetWorkspacePage.test.tsx`: Tests workspace details, per-run saved counts, partial warnings, ingestion failures, denied access, and failed-POST refresh behavior including old-run and navigation races.
 
 ## `apps/web/src/lib/`: frontend networking and safety helpers
 
@@ -216,7 +229,7 @@ These files are test inputs, not the application's database or fallback producti
 - `apps/web/src/lib/api-client.test.ts`: Tests token headers, JSON POSTs, response unwrapping, field-error preservation, and safe network/error handling.
 - `apps/web/src/lib/api-context.tsx`: Provides the authenticated API client through React context and exposes the `useApi` hook.
 - `apps/web/src/lib/use-api-client.ts`: Memoizes an API client whose token supplier reads the current Clerk session.
-- `apps/web/src/lib/errors.ts`: Maps recognized backend error codes to safe frontend messages, with generic and network-error fallbacks.
+- `apps/web/src/lib/errors.ts`: Maps recognized backend and ingestion outcome codes, including persistence failures, to safe frontend messages with generic and network-error fallbacks.
 - `apps/web/src/lib/errors.test.ts`: Tests code-to-message mapping and refusal to show raw or unrecognized server error messages.
 - `apps/web/src/lib/return-to.ts`: Validates internal return destinations and builds sign-in URLs while blocking external/open-redirect patterns.
 - `apps/web/src/lib/return-to.test.ts`: Tests safe internal destinations, rejection of malicious return paths, and destination encoding.
@@ -226,7 +239,7 @@ These files are test inputs, not the application's database or fallback producti
 - `packages/shared/package.json`: Shared-package dependencies, exports, build/typecheck/test scripts, and source-versus-compiled entry points.
 - `packages/shared/tsconfig.json`: Type-checks shared source using the repository's strict TypeScript settings.
 - `packages/shared/tsconfig.build.json`: Emits production JavaScript and declaration files into `dist`, excluding tests.
-- `packages/shared/src/index.ts`: Public barrel exporting target, Clerk-key, error, and ingestion contracts.
+- `packages/shared/src/index.ts`: Public barrel exporting target, Clerk-key, error, ingestion, and review-response contracts.
 - `packages/shared/src/analysis-targets.ts`: Shared Zod rules and input type for target names and HTTP(S) source URLs; rejects extra ownership/platform fields.
 - `packages/shared/src/analysis-targets.test.ts`: Tests trimming, valid inputs, invalid names/URLs, and rejection of client-supplied ownership/platform values.
 - `packages/shared/src/clerk.ts`: Checks Clerk publishable-key structure so both apps can reject malformed or secret keys at startup.
@@ -234,6 +247,7 @@ These files are test inputs, not the application's database or fallback producti
 - `packages/shared/src/errors.ts`: Defines request and ingestion error-code sets, plus the standard API error-envelope schema and types.
 - `packages/shared/src/errors.test.ts`: Tests valid error envelopes and rejection of unknown codes or unrelated response shapes.
 - `packages/shared/src/ingestion.ts`: Defines the strict empty start-ingestion request, lifecycle statuses, and ingestion-run response schema/types.
+- `packages/shared/src/reviews.ts`: Defines saved-review fields and review-list response schemas/types, including fractional ratings, optional source data, metadata, and creation timestamps.
 
 ## `docs/`: project guidance and demo documentation
 
@@ -242,7 +256,8 @@ These files are test inputs, not the application's database or fallback producti
 - `docs/ui-ux-standards.md`: Shared navigation, layout, form, validation, loading, button, spacing, and typography conventions.
 - `docs/AI_assisted_development.md`: AI-assisted development/review expectations, dependency verification, required tests, and transcript-retention rules.
 - `docs/ingestion-approach.md`: Explains the SerpApi design, supported Maps URLs, pagination, field mapping, outcomes, and safe fixture recording.
-- `docs/demo-setup.md`: Setup/rehearsal checklist, previously recorded live/automated verification, recovery guidance, and remaining demo dependencies.
+- `docs/demo-setup.md`: Current setup/rehearsal checklist, outcome/count semantics, API review inspection, historical verification evidence, remaining live checks, and recovery guidance.
+- `docs/repository-file-guide.md`: This complete tracked-file inventory and database/feature map, pinned to a source snapshot with explicit verification limits.
 
 ## `ai-transcripts/`: development records
 
@@ -250,6 +265,9 @@ These records document earlier development activity; the current source files ar
 
 - `ai-transcripts/2026-11-07_nicholas_Github Copilot_S1-014_AnalysisTarget Persistance.md`: AI-assisted development conversation for the initial target persistence/schema work and tests.
 - `ai-transcripts/2026-11-08_nicholas_Github Copilot_S1-015+S1-017_Create and list AnalysisTargets.md`: Development conversation covering target creation/listing, user mapping, validation, tests, and related ownership decisions.
+- `ai-transcripts/2026-11-09_Jonathan Issue 21 AI Transcript.md`: AI-assisted development record for review normalization work.
+- `ai-transcripts/2026-11-09_Jonathan Issue 22 AI Transcript.txt`: AI-assisted development record for persisted review storage and retrieval.
+- `ai-transcripts/2026-11-09_Jonathan Issue 23 AI Transcript.txt`: AI-assisted development record for ingestion outcome reporting and saved-review counts.
 - `ai-transcripts/2026-11-09_sah_codex_S1-012_target-authorization.md`: Edited AI work summary for owner-only target read/delete endpoints, isolation tests, and local verification.
 - `ai-transcripts/2026-11-09_sah_codex_S1-018_target-workspace.md`: Edited AI work summary for the protected target workspace, ingestion controls/latest status, and verification scope.
 
@@ -259,12 +277,12 @@ These records document earlier development activity; the current source files ar
 2. **Authenticate:** Clerk verifies the session; `require-user.ts` resolves the internal user through `users.repository.ts`.
 3. **Create/open a target:** The frontend target API calls the target routes, service, and owner-scoped repository.
 4. **Collect reviews:** The workspace calls the ingestion route; the service verifies ownership and uses the SerpApi adapter.
-5. **Normalize and record the outcome:** `review-normalizer.ts` filters/cleans raw reviews; the service saves the run status/count through `ingestion-runs.repository.ts`.
+5. **Normalize and save:** `review-normalizer.ts` filters/cleans raw reviews; `reviews.repository.ts` inserts the usable batch and completes its run in one transaction. The ingestion service records failures through the run repository.
+6. **Inspect results:** The workspace shows the latest run's state, saved count, and warnings. The review API checks target ownership and returns stored content through the reviews service/repository.
 
 ## Verification notes
 
-- Matched inventory entries against `git ls-files` for the pinned commit: every tracked file appears once in the directory inventory.
-- Inspected source, schema, migrations, configuration, test cases, and documentation to describe actual responsibilities rather than filenames alone.
-- The guide received a separate source-based accuracy review. Its inventory and Markdown formatting were checked independently of the repository's normal formatting exclusions.
-- Local checks passed: lint, repository formatting, typecheck, production build, and 190 tests. Another 31 database tests were skipped because this environment has no configured PostgreSQL test database.
-- This is a documentation-only change. No services, database migrations, or provider calls were run, and no existing project files were changed. Database-backed checks still need a PostgreSQL-equipped environment or CI.
+- The inventory was compared with GitHub's complete, untruncated recursive tree for `b0d120bcd25469992fbc4a7116308514302ce876`: all 153 tracked file paths appear exactly once in the directory inventory, including this guide.
+- This refresh inspected the current schema, review migration, ownership helper, review/ingestion services and repositories, routes, workspace, shared contracts, and relevant tests. A source comparison identified the changes since the previous `a2b935a` inventory.
+- The earlier guide recorded lint, format, typecheck, build, and 190 passing tests with 31 database tests skipped at its older snapshot. Those are historical results, not validation of current main.
+- This documentation-only refresh checks inventory coverage and the descriptions against source. It does not claim a new application test run, live database check, provider call, or browser rehearsal. See [demo setup](demo-setup.md) for the current acceptance checklist and separately labeled historical evidence.
