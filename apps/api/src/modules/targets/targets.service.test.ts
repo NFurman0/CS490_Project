@@ -63,13 +63,15 @@ describe('createTargetsService', () => {
 
   it('uses the owner in single-target reads and deletes', async () => {
     const { service, repository } = createService(async () => true);
-    await expect(service.getOwned('owner-a', 'target-id')).rejects.toMatchObject({
+    // A real UUID: the shared ownership guard rejects malformed IDs before any lookup.
+    const targetId = '22222222-2222-4222-8222-222222222222';
+    await expect(service.getOwned('owner-a', targetId)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
-    await expect(service.deleteOwned('owner-b', 'target-id')).rejects.toMatchObject({
+    await expect(service.deleteOwned('owner-b', targetId)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
-    expect(repository.findById).toHaveBeenCalledWith('owner-a', 'target-id');
-    expect(repository.deleteById).toHaveBeenCalledWith('owner-b', 'target-id');
+    expect(repository.findById).toHaveBeenCalledWith('owner-a', targetId);
+    expect(repository.deleteById).toHaveBeenCalledWith('owner-b', targetId);
   });
 });

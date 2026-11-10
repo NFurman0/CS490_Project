@@ -1,15 +1,13 @@
-import type { AnalysisTarget, IngestionRun } from '@prisma/client';
+import type { IngestionRun } from '@prisma/client';
 import { AppError } from '../../lib/errors.js';
 import type { Logger } from '../../lib/logger.js';
+import { getOwnedTargetOrThrow, type OwnedTargetLookup } from '../targets/owned-target.js';
 import type { FinishedRun, IngestionRunsRepository } from './ingestion-runs.repository.js';
 import { normalizeReviews } from './review-normalizer.js';
 import type { ReviewSource } from './review-source.js';
 import type { ReviewsRepository } from '../reviews/reviews.repository.js';
 
-/** The part of the targets repository ingestion needs. `findById` filters by owner. */
-export interface OwnedTargetLookup {
-  findById(ownerId: string, targetId: string): Promise<AnalysisTarget | null>;
-}
+export type { OwnedTargetLookup };
 
 export interface IngestionServiceDependencies {
   targets: OwnedTargetLookup;
@@ -32,15 +30,9 @@ export function createIngestionService({
   maxReviewsPerRun,
   logger,
 }: IngestionServiceDependencies) {
-  async function getOwnedTargetOrThrow(ownerId: string, targetId: string): Promise<AnalysisTarget> {
-    const target = await targets.findById(ownerId, targetId);
-    if (!target) throw new AppError('NOT_FOUND', 'Analysis target not found.');
-    return target;
-  }
-
   return {
     async latestRun(ownerId: string, targetId: string): Promise<IngestionRun | null> {
-      const target = await getOwnedTargetOrThrow(ownerId, targetId);
+      const target = await getOwnedTargetOrThrow(targets, ownerId, targetId);
       return runs.findLatest(target.id);
     },
 
@@ -53,7 +45,7 @@ export function createIngestionService({
      */
     async startIngestion(ownerId: string, targetId: string): Promise<IngestionRun> {
       // 1. Ownership first. Missing and not-owned look the same to the caller (§4.4).
-      const target = await getOwnedTargetOrThrow(ownerId, targetId);
+      const target = await getOwnedTargetOrThrow(targets, ownerId, targetId);
 
       // 2. Required source information (S1-BR-025).
       if (!target.sourceUrl?.trim()) {
