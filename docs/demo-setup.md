@@ -1,10 +1,10 @@
 # Demo setup and rehearsal
 
-Use this checklist to prepare a local demo and record what actually passes. Follow the course rubric for the presentation order and required evidence. An unchecked item is unverified; mark missing functionality as blocked rather than presenting planned behavior as complete.
+**Live demo check passed on November 9, 2026, around 7:00 p.m. Eastern:** the API accepted a real Clerk Google session, target creation and workspace navigation worked, and one real SerpApi import succeeded. The saved run had `errorCode: null` and `reviewCount: 1`; reloading retained that result. Sign-out protected the workspace, and an anonymous target request returned `401`.
 
-**Latest setup check, November 9, 2026, 2:25 p.m. Eastern:** the real Clerk sign-in modal now loads locally with matching API/web publishable keys. Successful sign-in and backend session acceptance remain unverified because `SERPAPI_API_KEY` is still a placeholder and the API rejects incomplete configuration. #41 has also been updated to `42d77a0`; its earlier merge conflicts are resolved, but it remains unmerged with three storage-dependent TODOs.
+Use this checklist to repeat the demo and record what passes. Follow the course rubric for the presentation order and required evidence. An unchecked item is unverified.
 
-**Current checked main:** [`6f79e84`](https://github.com/NFurman0/CS490_Project/commit/6f79e846d0fe2e5ec3f70a5a5d514f488b5362fe), November 9, 2026, 12:35 p.m. Eastern. PRs #42 and #43 are merged. The workspace and target-ownership routes below are now on main; review storage and live service verification remain incomplete.
+**Current checked main:** [`6f79e84`](https://github.com/NFurman0/CS490_Project/commit/6f79e846d0fe2e5ec3f70a5a5d514f488b5362fe), unchanged between the automated checks and this live rehearsal. PRs #42 and #43 are merged. The remaining checks cover a second real account, a multi-page import and the team's review-storage work.
 
 ## Prepare the machine
 
@@ -122,9 +122,9 @@ The backend persists ingestion-run status, timestamps, errors and the fetched co
 | Remaining work                                                                                                                                            | Current evidence                                                                              | Acceptance gate                                                                                                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | [#41 — review/ingestion authorization](https://github.com/NFurman0/CS490_Project/pull/41), `42d77a0`                                                      | Open, now mergeable with current main and passing CI; three review-storage tests remain TODOs | Review the reconciled ownership changes and complete storage-dependent tests before claiming full review privacy                       |
-| [#21 — normalization](https://github.com/NFurman0/CS490_Project/issues/21), Jonathan's `549d765` branch                                                   | Counts usable normalized records but does not save them                                       | Integrate reviewed normalization, resolve the observed formatting failures and test malformed-record behavior                          |
+| [#21 — normalization](https://github.com/NFurman0/CS490_Project/issues/21), Jonathan's `af07afb` branch                                                   | Latest advance adds comments; normalization counts usable records but does not save them      | Integrate reviewed normalization and verify the current branch; earlier tests and formatting findings below apply to `549d765`          |
 | [#22 — review storage](https://github.com/NFurman0/CS490_Project/issues/22) and [#23 — result state](https://github.com/NFurman0/CS490_Project/issues/23) | Assigned to Jonathan and still open at this check                                             | Persist and retrieve real review content, verify ownership, and report outcomes/counts with accurate meaning                           |
-| Live service configuration                                                                                                                                | Clerk configuration loads the real sign-in UI; the SerpApi value remains a placeholder        | Supply the missing SerpApi configuration privately, then verify backend session acceptance and complete the live two-account rehearsal |
+| Remaining live checks                                                                                                                                      | Real Clerk session, owner target flow, one-page SerpApi import and signed-out protection passed | Complete second-account isolation and a separate multi-page import when ready                                                          |
 
 The earlier four-file conflict finding applied to #41 at `fef5574`. Its updated tip `42d77a0` includes current main through merge `1a70095`; a fresh read-only merge simulation is clean, and GitHub reports it mergeable with passing CI. Source review confirms the shared ownership helper and main's target/read-delete/latest-run functionality are retained. This newer tip has not been independently rerun locally; the earlier local #41 test results below apply only to `fef5574`.
 
@@ -141,11 +141,26 @@ Checks ran on macOS with Node 26.5.0, unchanged locked dependencies, and Postgre
 | #41 `fef5574`, checked separately                                      | 192 passed; 3 review-storage TODOs remain                     | Lint, formatting, typecheck and build passed                                  |
 | Earlier temporary local combination of #43 and normalization `549d765` | 221 passed; no skips or TODOs                                 | Lint, typecheck and build passed; formatting failed in five changed API files |
 
-The temporary combination was not committed or published. Its formatting failures are in `ingestion.service.test.ts`, `review-normalizer.test.ts`, `review-normalizer.ts`, `test/helpers/test-database.ts` and `test/integration/ingestion.test.ts`.
+The temporary combination was not committed or published. Its formatting failures are in `ingestion.service.test.ts`, `review-normalizer.test.ts`, `review-normalizer.ts`, `test/helpers/test-database.ts` and `test/integration/ingestion.test.ts`. Jonathan's current branch is `af07afb`, a comments-only advance from `549d765`; the historical combination's test and formatting results have not been rerun on that newer tip.
 
 A separate component probe was rerun on current main: render otherwise identical `succeeded` runs first with `errorCode: null`, then with `errorCode: PROVIDER_TIMEOUT`. The visible workspace text is identical. The assertion that the user can distinguish those outcomes **fails**. This additional failing probe is separate from the passing existing-test counts above. The workspace needs a partial-result warning.
 
-The Clerk API/web settings now pass format validation and have matching publishable keys. The actual local home page and Clerk “Sign in to ReviewLens” modal were opened successfully. This proves live Clerk UI initialization, not successful sign-in or backend token acceptance. `SERPAPI_API_KEY` remains the template placeholder, so the API still stops before listening. Live sign-in through the API, two-account isolation and ingestion remain unverified. Automated tests use fake identities and recorded provider responses; they do not establish those live outcomes.
+### Live rehearsal, November 9, around 7:00 p.m. Eastern
+
+The API and web configuration validated successfully after a personal SerpApi key was configured privately. These checks used real services on unchanged main `6f79e84`:
+
+- [x] API health returned `200`.
+- [x] The backend accepted an existing real Clerk Google session.
+- [x] A target was created through the UI, appeared in the owner's list and opened in its workspace.
+- [x] One real SerpApi import with `MAX_REVIEWS_PER_RUN=1` succeeded. A read-only database check confirmed status `succeeded`, `error_code: null` and `review_count: 1`.
+- [x] Reloading the workspace retained the run state and count. List-to-workspace links worked.
+- [x] After sign-out, opening the workspace directly redirected to sign-in. An anonymous API target GET returned `401`.
+- [ ] Live isolation between two separate accounts.
+- [ ] A separate multi-page provider import.
+- [ ] Saved review text/ratings after the team's storage work is integrated.
+- [ ] A visible warning for partial results after the workspace defect is fixed.
+
+This rehearsal verifies a successful single-page import and persisted run information. The recorded count does not establish saved review text or ratings. The automated tests above separately cover controlled identities and recorded provider responses.
 
 These results do not approve or merge a pending feature PR. Recheck current source state before treating any blocker as resolved.
 
