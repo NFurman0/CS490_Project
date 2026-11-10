@@ -1,6 +1,9 @@
-import type { IngestionErrorCode } from '@reviewlens/shared';
 import type { Logger } from '../../lib/logger.js';
-import type { RawReview, SourcePlace } from '../../modules/ingestion/review-source.js';
+import type {
+  RawReview,
+  SourceOutcomeCode,
+  SourcePlace,
+} from '../../modules/ingestion/review-source.js';
 import { classifyProviderError, parseReviewsPage } from './serpapi.parser.js';
 import type { PlaceRef } from './place-url.js';
 
@@ -28,7 +31,7 @@ export type FetchPageResult =
       reviews: RawReview[];
       nextPageToken: string | null;
     }
-  | { ok: false; errorCode: IngestionErrorCode };
+  | { ok: false; errorCode: SourceOutcomeCode };
 
 /**
  * Fetches one page of reviews from SerpApi.
@@ -45,7 +48,7 @@ export async function fetchReviewsPage(options: FetchPageOptions): Promise<Fetch
     res = await fetchFn(buildRequestUrl(options), { signal: AbortSignal.timeout(timeoutMs) });
   } catch (error) {
     const name = error instanceof Error ? error.name : 'unknown';
-    const errorCode: IngestionErrorCode =
+    const errorCode: SourceOutcomeCode =
       name === 'TimeoutError' || name === 'AbortError' ? 'PROVIDER_TIMEOUT' : 'PROVIDER_ERROR';
     logger.warn({ page, errorName: name, errorCode }, 'SerpApi request failed');
     return { ok: false, errorCode };

@@ -5,6 +5,7 @@ import { createLogger } from '../../lib/logger.js';
 import type { FinishedRun, IngestionRunsRepository } from './ingestion-runs.repository.js';
 import { createIngestionService, type OwnedTargetLookup } from './ingestion.service.js';
 import type { FetchReviewsResult, RawReview, ReviewSource } from './review-source.js';
+import type { ReviewsRepository } from '../reviews/reviews.repository.js';
 
 const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const TARGET_ID = '22222222-2222-4222-8222-222222222222';
@@ -68,6 +69,16 @@ function setup({
 } = {}) {
   const targets: OwnedTargetLookup = { findById: vi.fn(async () => found) };
   const runs = fakeRuns();
+  const reviews: ReviewsRepository = {
+    findByTarget: vi.fn(async () => []),
+    saveBatchAndFinishRun: vi.fn(async (_ownerId, _targetId, runId, batch, stoppedEarly) =>
+      runs.repo.finish(runId, {
+        status: 'SUCCEEDED',
+        errorCode: stoppedEarly,
+        reviewCount: batch.length,
+      }),
+    ),
+  };
   const fetchReviews = vi.fn<ReviewSource['fetchReviews']>(async () => {
     if (result instanceof Error) throw result;
     return result;
@@ -75,11 +86,12 @@ function setup({
   const service = createIngestionService({
     targets,
     runs: runs.repo,
+    reviews,
     reviewSource: { fetchReviews },
     maxReviewsPerRun: 25,
     logger: createLogger('silent'),
   });
-  return { service, targets, runs, fetchReviews };
+  return { service, targets, runs, reviews, fetchReviews };
 }
 
 const place = { title: "Joe's Pizza", address: null, totalReviews: 3 };
@@ -147,7 +159,10 @@ describe('startIngestion', () => {
       result: {
         ok: true,
         place,
-        reviews: [{ ...rawReview(1), text: null }, { ...rawReview(2), rating: NaN }],
+        reviews: [
+          { ...rawReview(1), text: null },
+          { ...rawReview(2), rating: NaN },
+        ],
       },
     });
 
@@ -180,13 +195,16 @@ describe('startIngestion', () => {
     });
   });
 
-  it.each(INGESTION_ERROR_CODES)('records a failed run with zero reviews for %s', async (code) => {
-    const { service } = setup({ result: { ok: false, errorCode: code } });
+  it.each(INGESTION_ERROR_CODES.filter((code) => code !== 'PERSISTENCE_ERROR'))(
+    'records a failed run with zero reviews for %s',
+    async (code) => {
+      const { service } = setup({ result: { ok: false, errorCode: code } });
 
-    const run = await service.startIngestion(OWNER_ID, TARGET_ID);
+      const run = await service.startIngestion(OWNER_ID, TARGET_ID);
 
-    expect(run).toMatchObject({ status: 'FAILED', errorCode: code, reviewCount: 0 });
-  });
+      expect(run).toMatchObject({ status: 'FAILED', errorCode: code, reviewCount: 0 });
+    },
+  );
 
   it('keeps a partial result as succeeded and records why paging stopped', async () => {
     const { service } = setup({

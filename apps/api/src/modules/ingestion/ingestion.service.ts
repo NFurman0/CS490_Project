@@ -4,6 +4,7 @@ import type { Logger } from '../../lib/logger.js';
 import type { FinishedRun, IngestionRunsRepository } from './ingestion-runs.repository.js';
 import { normalizeReviews } from './review-normalizer.js';
 import type { ReviewSource } from './review-source.js';
+import type { ReviewsRepository } from '../reviews/reviews.repository.js';
 
 /** The part of the targets repository ingestion needs. `findById` filters by owner. */
 export interface OwnedTargetLookup {
@@ -13,6 +14,7 @@ export interface OwnedTargetLookup {
 export interface IngestionServiceDependencies {
   targets: OwnedTargetLookup;
   runs: IngestionRunsRepository;
+  reviews: ReviewsRepository;
   reviewSource: ReviewSource;
   /** MAX_REVIEWS_PER_RUN: upper bound on reviews fetched in one run. */
   maxReviewsPerRun: number;
@@ -24,6 +26,7 @@ export type IngestionService = ReturnType<typeof createIngestionService>;
 export function createIngestionService({
   targets,
   runs,
+  reviews,
   reviewSource,
   maxReviewsPerRun,
   logger,
@@ -55,6 +58,7 @@ export function createIngestionService({
       const run = await runs.start(target.id);
 
       let outcome: FinishedRun;
+      let normalizedReviews: ReturnType<typeof normalizeReviews> | null = null;
       try {
         const result = await reviewSource.fetchReviews({
           sourceUrl: target.sourceUrl,
@@ -66,15 +70,14 @@ export function createIngestionService({
           // every record has usable text/rating. Make that decision here rather
           // than in the SerpApi adapter, so other providers follow the same rule.
           const normalized = normalizeReviews(result.reviews);
-          // S1-022 will persist normalized.reviews under the owned target. For now,
-          // reviewCount measures usable reviews, NOT reviews saved to the database.
+          normalizedReviews = normalized;
           // A partial page error is meaningful only when at least one usable
           // review remains; otherwise SOURCE_NO_REVIEWS explains the failed run.
           outcome = normalized.ok
             ? {
                 status: 'SUCCEEDED',
                 errorCode: result.stoppedEarly ?? null,
-                reviewCount: normalized.reviews.length,
+                reviewCount: 0, // Replaced by the actual inserted count in the transaction.
               }
             : { status: 'FAILED', errorCode: normalized.errorCode, reviewCount: 0 };
         } else {
@@ -93,7 +96,38 @@ export function createIngestionService({
         throw error;
       }
 
-      const finished = await runs.finish(run.id, outcome);
+      let finished: IngestionRun;
+      if (normalizedReviews?.ok) {
+        try {
+          // One transaction inserts the complete batch and finishes the run.
+          // An insert or finish failure rolls both operations back.
+          finished = await reviews.saveBatchAndFinishRun(
+            ownerId,
+            target.id,
+            run.id,
+            normalizedReviews.reviews,
+            outcome.errorCode,
+          );
+        } catch (error) {
+          try {
+            await runs.finish(run.id, {
+              status: 'FAILED',
+              errorCode: 'PERSISTENCE_ERROR',
+              reviewCount: 0,
+            });
+          } catch (finishError) {
+            // If the DB itself is unavailable, even recording FAILED may fail.
+            // Log both failures without sending either database detail to the client.
+            logger.error(
+              { err: finishError, runId: run.id },
+              'could not record persistence failure',
+            );
+          }
+          throw error;
+        }
+      } else {
+        finished = await runs.finish(run.id, outcome);
+      }
       logger.info(
         {
           runId: finished.id,

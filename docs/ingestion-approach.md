@@ -82,22 +82,25 @@ The checks run in this order, and the first one that fails ends the request (`do
 
 Only after all three pass is an `IngestionRun` created (`status: running`) and the `ReviewSource` called. A request that fails a check creates no run and never reaches SerpApi. The integration tests assert both.
 
-The run then finishes with one of these outcomes. All of them return `201` with the run, because the request itself was valid:
+The run then finishes with one of these outcomes. Source outcomes return `201` with the run
+because the request itself was valid; unexpected errors return a generic HTTP `500`:
 
 | Source result                             | Run                                                                                           |
 | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Reviews returned                          | `succeeded`, `reviewCount` = number returned                                                  |
-| Reviews returned, but a later page failed | `succeeded`, `reviewCount` = number kept, `errorCode` = why paging stopped (a partial result) |
+| Usable reviews saved                      | `succeeded`, `reviewCount` = number inserted                                                  |
+| Reviews saved, but a later page failed    | `succeeded`, `reviewCount` = number inserted, `errorCode` = why paging stopped (a partial result) |
 | Any outcome code from the table above     | `failed`, that `errorCode`, `reviewCount: 0`                                                  |
 | The source throws (a bug)                 | Run marked `failed` / `PROVIDER_ERROR`, then a generic `500`                                  |
+| Saving reviews fails                      | Batch rolled back; run marked `failed` / `PERSISTENCE_ERROR` / count 0 if the database is available, then a generic `500` |
 
-A run is never left in `running` after the request ends.
+A run is finalized when the database is available; if the database cannot record even the
+failure outcome, the request still returns a generic 500 and the unfinished run requires recovery.
 
 Runs are **synchronous**: the request waits for SerpApi, bounded by `MAX_REVIEWS_PER_RUN` (default 50, at most 4 searches) and the 15-second timeout per page (Engineering Standards §13).
 
 **Limitations for Sprint 1:**
 
-- Fetched reviews are **counted, not stored**. Normalizing them (S1-021) and saving them as `Review` records (S1-022) plug into one marked spot in `ingestion.service.ts`.
+- Normalized reviews are saved under their owned target in a short transaction with the run's success update (S1-022). The network call runs before the transaction.
 - There is no guard against two runs for the same target at the same time. Re-ingestion and duplicate handling are out of Sprint 1 scope.
 
 ## No substitute data

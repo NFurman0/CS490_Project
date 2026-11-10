@@ -12,6 +12,7 @@ import {
   INGESTION_RUNS_PATH,
 } from '../../src/modules/ingestion/ingestion.routes.js';
 import { createIngestionService } from '../../src/modules/ingestion/ingestion.service.js';
+import { createReviewsRepository } from '../../src/modules/reviews/reviews.repository.js';
 import { createTargetsRepository } from '../../src/modules/targets/targets.repository.js';
 import { createUsersRepository } from '../../src/modules/users/users.repository.js';
 import { createTestApp } from '../helpers/test-app.js';
@@ -41,6 +42,7 @@ function appFor(clerkUserId: string | null, result: FetchReviewsResult = succeed
   const service = createIngestionService({
     targets,
     runs: createIngestionRunsRepository(testPrisma),
+    reviews: createReviewsRepository(testPrisma),
     reviewSource: { fetchReviews },
     maxReviewsPerRun: 50,
     logger: createLogger('silent'),
@@ -106,8 +108,7 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
   });
 
   it('counts only normalized reviews in the recorded run', async () => {
-    // Inspect both the HTTP response and the persisted IngestionRun. No Review
-    // rows exist yet: S1-022 will save them; this tests the recorded count.
+    // The count must match rows that made it through normalization and insertion.
     const target = await targetOwnedBy('clerk_a');
     if (!succeeded.ok) throw new Error('expected fixture reviews');
     const { app } = appFor('clerk_a', {
@@ -118,7 +119,9 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
     const res = await request(app).post(runsUrl(target.id)).expect(201);
 
     expect(res.body.data).toMatchObject({ status: 'succeeded', errorCode: null, reviewCount: 1 });
-    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({ where: { id: res.body.data.id } });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
+      where: { id: res.body.data.id },
+    });
     expect(saved).toMatchObject({ status: 'SUCCEEDED', reviewCount: 1 });
   });
 
@@ -139,8 +142,14 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/ingestio
       errorCode: 'SOURCE_NO_REVIEWS',
       reviewCount: 0,
     });
-    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({ where: { id: res.body.data.id } });
-    expect(saved).toMatchObject({ status: 'FAILED', errorCode: 'SOURCE_NO_REVIEWS', reviewCount: 0 });
+    const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
+      where: { id: res.body.data.id },
+    });
+    expect(saved).toMatchObject({
+      status: 'FAILED',
+      errorCode: 'SOURCE_NO_REVIEWS',
+      reviewCount: 0,
+    });
   });
 
   it("returns 404 for another user's target before creating a run or calling the source", async () => {

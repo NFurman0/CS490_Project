@@ -18,6 +18,7 @@ export const INGESTION_ERROR_CODES = [
   'PROVIDER_TIMEOUT',
   'PROVIDER_QUOTA_EXHAUSTED',
   'PROVIDER_ERROR',
+  'PERSISTENCE_ERROR',
 ] as const;
 
 export type IngestionErrorCode = (typeof INGESTION_ERROR_CODES)[number];
