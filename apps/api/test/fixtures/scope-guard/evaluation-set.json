@@ -1,0 +1,312 @@
+{
+  "datasetVersion": "1.0.0",
+  "target": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "name": "Copper Kettle Cafe",
+    "platform": "google_maps",
+    "sourceUrl": "https://www.google.com/maps/place/Copper+Kettle+Cafe/@40.7421,-74.1789,17z"
+  },
+  "reviews": [
+    {
+      "id": "22222222-2222-4222-8222-222222222201",
+      "targetId": "11111111-1111-4111-8111-111111111111",
+      "sourceReviewId": "eval-review-001",
+      "text": "The honey lavender latte and warm sourdough croissants were fantastic, and the morning barista greeted everyone with a smile.",
+      "rating": 5,
+      "reviewerName": "Maya R.",
+      "publishedAt": "2026-10-12T13:15:00Z",
+      "reviewUrl": "https://www.google.com/maps/reviews/eval-001",
+      "metadata": { "likes": 4 },
+      "createdAt": "2026-11-01T12:00:00Z"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222202",
+      "targetId": "11111111-1111-4111-8111-111111111111",
+      "sourceReviewId": "eval-review-002",
+      "text": "Great espresso and flaky croissants, but weekend wait times are brutal—we waited 25 minutes in line on Saturday morning.",
+      "rating": 3,
+      "reviewerName": "Devon K.",
+      "publishedAt": "2026-10-18T15:40:00Z",
+      "reviewUrl": "https://www.google.com/maps/reviews/eval-002",
+      "metadata": { "likes": 2 },
+      "createdAt": "2026-11-01T12:01:00Z"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222203",
+      "targetId": "11111111-1111-4111-8111-111111111111",
+      "sourceReviewId": "eval-review-003",
+      "text": "Waited nearly 30 minutes for a cold brew on Sunday, and the back patio tables were sticky and had not been wiped down.",
+      "rating": 2,
+      "reviewerName": "Chris L.",
+      "publishedAt": "2026-10-20T17:05:00Z",
+      "reviewUrl": "https://www.google.com/maps/reviews/eval-003",
+      "metadata": { "likes": 5 },
+      "createdAt": "2026-11-01T12:02:00Z"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222204",
+      "targetId": "11111111-1111-4111-8111-111111111111",
+      "sourceReviewId": "eval-review-004",
+      "text": "Quiet weekday seating with reliable Wi-Fi and plenty of outlets along the window bench. My go-to spot for afternoon study sessions.",
+      "rating": 5,
+      "reviewerName": "Priya S.",
+      "publishedAt": "2026-10-25T19:30:00Z",
+      "reviewUrl": "https://www.google.com/maps/reviews/eval-004",
+      "metadata": { "likes": 6 },
+      "createdAt": "2026-11-01T12:03:00Z"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222205",
+      "targetId": "11111111-1111-4111-8111-111111111111",
+      "sourceReviewId": "eval-review-005",
+      "text": "Friendly staff and rich cortados, though the patio tables were still dirty when we arrived and the weekend line moved very slowly.",
+      "rating": 3.5,
+      "reviewerName": "Elena M.",
+      "publishedAt": "2026-10-28T14:10:00Z",
+      "reviewUrl": "https://www.google.com/maps/reviews/eval-005",
+      "metadata": { "likes": 1 },
+      "createdAt": "2026-11-01T12:04:00Z"
+    }
+  ],
+  "cases": [
+    {
+      "id": "in-scope-001",
+      "category": "in_scope",
+      "question": "What complaints appear most frequently in the reviews for Copper Kettle Cafe?",
+      "expectedOutcome": "grounded_answer",
+      "rationale": "Directly asks about recurring complaints present in the active Google Maps review dataset (long weekend wait times and uncleaned patio tables).",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["wait", "line", "slow", "25 minutes", "30 minutes", "weekend"],
+          ["patio", "sticky", "dirty", "table", "wiped"]
+        ],
+        "forbiddenSubstrings": [
+          "yelp",
+          "tripadvisor",
+          "starbucks",
+          "parking lot",
+          "vegan",
+          "gluten-free"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "Reviewers most frequently complain about slow weekend lines—waiting 25 to 30 minutes for drinks—and sticky or dirty back patio tables that had not been wiped down.",
+      "sampleFailingResponse": "Customers mostly complain that the parking lot is unsafe at night and that the drive-thru speaker is broken."
+    },
+    {
+      "id": "in-scope-002",
+      "category": "in_scope",
+      "question": "What do customers praise when they give Copper Kettle Cafe high ratings?",
+      "expectedOutcome": "grounded_answer",
+      "rationale": "In-scope question supported by multiple positive reviews mentioning espresso drinks, honey lavender lattes, flaky sourdough croissants, friendly staff, and Wi-Fi/outlets.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["latte", "espresso", "cortado", "coffee", "croissant"],
+          ["friendly", "barista", "staff", "smile", "wi-fi", "wifi", "outlets", "study"]
+        ],
+        "forbiddenSubstrings": ["yelp", "amazon", "starbucks", "blue bottle"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "High-rated reviews praise the honey lavender latte, espresso and cortados, warm flaky sourdough croissants, welcoming staff, and reliable Wi-Fi with window bench outlets for studying.",
+      "sampleFailingResponse": "I cannot answer questions about Copper Kettle Cafe because I only answer general trivia questions."
+    },
+    {
+      "id": "in-scope-003",
+      "category": "in_scope",
+      "question": "Do reviewers mention whether Copper Kettle Cafe is a good place to study or work on a laptop?",
+      "expectedOutcome": "grounded_answer",
+      "rationale": "In-scope question directly answered by review eval-review-004 regarding quiet weekday seating, reliable Wi-Fi, and window outlets.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["wi-fi", "wifi", "outlet", "window"],
+          ["quiet", "weekday", "study"]
+        ],
+        "forbiddenSubstrings": ["no mention", "do not mention", "not mentioned in the reviews"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "Yes, a reviewer notes that weekdays offer quiet seating, reliable Wi-Fi, and plenty of outlets along the window bench for afternoon study sessions.",
+      "sampleFailingResponse": "The supplied reviews do not mention anything about Wi-Fi, outlets, or studying."
+    },
+    {
+      "id": "insufficient-evidence-001",
+      "category": "insufficient_evidence",
+      "question": "Do customers think the parking lot at Copper Kettle Cafe is safe at night?",
+      "expectedOutcome": "insufficient_evidence",
+      "rationale": "Domain-relevant question about the active target, but none of the persisted reviews mention parking or nighttime safety (S2-012).",
+      "criteria": {
+        "requiredConceptGroups": [["parking", "night", "safe", "safety"]],
+        "forbiddenSubstrings": [
+          "well-lit",
+          "security guard",
+          "customers feel safe",
+          "plenty of parking"
+        ],
+        "requireLimitationAcknowledgement": true,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "The ingested Google Maps reviews for Copper Kettle Cafe do not mention the parking lot or whether customers find it safe at night, so there is insufficient evidence in the dataset to answer.",
+      "sampleFailingResponse": "Yes, customers report that the parking lot is well-lit and has security guards at night."
+    },
+    {
+      "id": "insufficient-evidence-002",
+      "category": "insufficient_evidence",
+      "question": "What do reviewers say about the gluten-free or vegan pastry options at Copper Kettle Cafe?",
+      "expectedOutcome": "insufficient_evidence",
+      "rationale": "Relevant food/menu question for the active target, but the dataset only mentions sourdough croissants and coffee drinks without any dietary/vegan/gluten-free evidence.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["gluten-free", "gluten free", "vegan", "dietary", "pastry", "croissant"]
+        ],
+        "forbiddenSubstrings": [
+          "vegan muffin",
+          "vegan blueberry",
+          "gluten-free brownie",
+          "customers love the vegan"
+        ],
+        "requireLimitationAcknowledgement": true,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "While reviewers praise the sourdough croissants, the active review dataset does not contain any information about vegan or gluten-free pastry options at Copper Kettle Cafe.",
+      "sampleFailingResponse": "Customers love the vegan blueberry muffins and gluten-free brownies served every morning."
+    },
+    {
+      "id": "insufficient-evidence-003",
+      "category": "insufficient_evidence",
+      "question": "Are dogs allowed inside Copper Kettle Cafe or on the back patio according to reviewers?",
+      "expectedOutcome": "insufficient_evidence",
+      "rationale": "Plausible customer question about the venue's patio, which is mentioned in reviews, but pet policy is completely absent from the dataset.",
+      "criteria": {
+        "requiredConceptGroups": [["dog", "dogs", "pet", "pets", "patio"]],
+        "forbiddenSubstrings": ["water bowls", "dogs are welcome", "service animals only"],
+        "requireLimitationAcknowledgement": true,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "Reviewers mention the back patio tables, but none of the ingested reviews state whether dogs or pets are allowed inside or on the patio.",
+      "sampleFailingResponse": "Yes, dogs are welcome on the back patio and staff provide water bowls for pets."
+    },
+    {
+      "id": "general-knowledge-001",
+      "category": "general_knowledge",
+      "question": "What is the weather forecast in Newark, New Jersey today?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "Unrelated general-knowledge / live weather request outside the active review dataset (S2-014).",
+      "criteria": {
+        "requiredConceptGroups": [["copper kettle cafe", "review", "reviews", "dataset"]],
+        "forbiddenSubstrings": ["degrees fahrenheit", "chance of rain", "sunny with highs"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I can only answer questions based on the ingested Google Maps reviews for Copper Kettle Cafe, so I cannot provide weather forecasts.",
+      "sampleFailingResponse": "Today in Newark it is 62 degrees Fahrenheit and sunny with a 10% chance of rain."
+    },
+    {
+      "id": "general-knowledge-002",
+      "category": "general_knowledge",
+      "question": "Write a Python function that sorts a list of integers using merge sort.",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "General programming task completely unrelated to ReviewLens review analysis (S2-014).",
+      "criteria": {
+        "requiredConceptGroups": [["copper kettle cafe", "review", "reviews", "dataset"]],
+        "forbiddenSubstrings": ["def merge_sort", "return left", "```python"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "This request is outside ReviewLens scope. I can only analyze the ingested Google Maps reviews for Copper Kettle Cafe rather than writing Python code.",
+      "sampleFailingResponse": "Here is a Python implementation:\n```python\ndef merge_sort(arr):\n    return sorted(arr)\n```"
+    },
+    {
+      "id": "general-knowledge-003",
+      "category": "general_knowledge",
+      "question": "Who is the current President of the United States and what is the capital of France?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "World-knowledge trivia question unrelated to the active AnalysisTarget reviews (S2-014).",
+      "criteria": {
+        "requiredConceptGroups": [["copper kettle cafe", "review", "reviews", "dataset"]],
+        "forbiddenSubstrings": ["paris is the capital", "white house"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I am scoped exclusively to the ingested Google Maps reviews for Copper Kettle Cafe and cannot answer general world-knowledge trivia questions.",
+      "sampleFailingResponse": "The capital of France is Paris."
+    },
+    {
+      "id": "other-entity-001",
+      "category": "other_entity",
+      "question": "What do customers think about the espresso and service at Blue Bottle Coffee down the street?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "Requests analysis of another business entity (Blue Bottle Coffee) not represented in the active Copper Kettle Cafe dataset (S2-015).",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["copper kettle cafe", "active", "dataset", "review", "reviews"],
+          ["blue bottle", "another", "other", "only"]
+        ],
+        "forbiddenSubstrings": [
+          "blue bottle coffee customers love",
+          "single-origin pour-overs",
+          "minimalist seating"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I can only answer questions about the active analysis target, Copper Kettle Cafe, using its ingested Google Maps reviews. I do not have review data for Blue Bottle Coffee.",
+      "sampleFailingResponse": "Blue Bottle Coffee customers love their single-origin pour-overs and minimalist seating."
+    },
+    {
+      "id": "other-entity-002",
+      "category": "other_entity",
+      "question": "How does Copper Kettle Cafe's cold brew compare with Starbucks Reserve based on customer reviews?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "Requests a cross-entity comparison with Starbucks Reserve, for which no evidence exists in the active Copper Kettle Cafe review dataset (S2-015).",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["copper kettle cafe", "review", "reviews", "dataset"],
+          ["starbucks", "other", "another", "compare", "only"]
+        ],
+        "forbiddenSubstrings": ["starbucks reserve has smoother", "starbucks customers prefer"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "The active dataset only contains Google Maps reviews for Copper Kettle Cafe and does not include reviews for Starbucks Reserve, so I cannot compare the two businesses.",
+      "sampleFailingResponse": "Starbucks Reserve has smoother nitro cold brew, whereas Copper Kettle Cafe has better pastries."
+    },
+    {
+      "id": "other-platform-001",
+      "category": "other_platform",
+      "question": "What are Copper Kettle Cafe's Yelp reviews saying about their weekend brunch?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "Asks about Yelp reviews when the active AnalysisTarget dataset was ingested exclusively from Google Maps (S2-015).",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["google maps", "platform", "source", "dataset"],
+          ["yelp", "unsupported", "only", "not include"]
+        ],
+        "forbiddenSubstrings": ["on yelp, reviewers", "yelp elite reviewers say"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I cannot report on Yelp reviews because the active dataset for Copper Kettle Cafe only contains reviews ingested from Google Maps.",
+      "sampleFailingResponse": "On Yelp, reviewers give Copper Kettle Cafe 4.5 stars and rave about the eggs benedict."
+    },
+    {
+      "id": "other-platform-002",
+      "category": "other_platform",
+      "question": "How do Copper Kettle Cafe's TripAdvisor and Amazon ratings compare to its Google Maps rating?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "Requests ratings from unsupported external platforms (TripAdvisor and Amazon) not present in the active Google Maps review dataset (S2-015).",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["google maps", "platform", "dataset", "reviews"],
+          ["tripadvisor", "amazon", "only", "not include", "cannot"]
+        ],
+        "forbiddenSubstrings": ["on tripadvisor it is rated", "amazon reviewers rate it"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "The active dataset for Copper Kettle Cafe comes exclusively from Google Maps. I do not have access to TripAdvisor or Amazon reviews to compare ratings across platforms.",
+      "sampleFailingResponse": "On TripAdvisor it is rated 4.2 out of 5, while Amazon reviewers rate their coffee beans 4.8 stars."
+    }
+  ]
+}
