@@ -38,9 +38,9 @@ export default defineConfig(
     rules: reactHooks.configs.recommended.rules,
   },
 
-  // Tool config files run in Node.
+  // Tool config files and root scripts run in Node.
   {
-    files: ['**/*.config.{js,ts}'],
+    files: ['**/*.config.{js,ts}', 'scripts/**/*.{js,mjs,ts}'],
     languageOptions: { globals: globals.node },
   },
 );
