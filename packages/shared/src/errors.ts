@@ -7,6 +7,8 @@ export const ERROR_CODES = [
   'NOT_FOUND',
   'CONFLICT',
   'INTERNAL_ERROR',
+  // The AI provider failed, timed out, or returned an unusable answer.
+  'AI_SERVICE_UNAVAILABLE',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

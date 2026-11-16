@@ -14,6 +14,8 @@ const MESSAGES: Record<ErrorCode, string> = {
   NOT_FOUND: 'We couldn’t find that. It may have been removed, or you may not have access to it.',
   CONFLICT: 'That action is already in progress. Wait for it to finish, then try again.',
   INTERNAL_ERROR: 'Something went wrong on our side. Please try again.',
+  AI_SERVICE_UNAVAILABLE:
+    'ReviewLens couldn’t answer right now. Your reviews are safe, please try again in a moment.',
 };
 
 export const FALLBACK_MESSAGE = MESSAGES.INTERNAL_ERROR;

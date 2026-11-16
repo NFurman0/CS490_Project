@@ -6,6 +6,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   INTERNAL_ERROR: 500,
+  AI_SERVICE_UNAVAILABLE: 503,
 };
 
 /**
