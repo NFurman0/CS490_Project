@@ -39,20 +39,21 @@ const storedReviews = [
   review('r2', 'Wi-Fi drops often.', 2),
 ];
 
-function setup(reviewRows: Review[] = storedReviews) {
+function setup(reviewRows: Review[] = storedReviews, contextTokenBudget?: number) {
   const fake = createFakeQaModel();
   const findById = vi.fn(async (ownerId: string, id: string) =>
     ownerId === OWNER && id === TARGET_ID ? target : null,
   );
   const findByTarget = vi.fn(async () => reviewRows);
-  const logger = { error: vi.fn(), warn: vi.fn() } as unknown as Logger;
+  const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn() } as unknown as Logger;
   const service = createQaService({
     targets: { findById },
     reviews: { findByTarget },
     model: fake.model,
     logger,
+    contextTokenBudget,
   });
-  return { fake, service, findById, findByTarget };
+  return { fake, service, findById, findByTarget, logger };
 }
 
 async function captureAppError(promise: Promise<unknown>): Promise<AppError> {
@@ -114,6 +115,7 @@ describe('Q&A orchestration (deterministic harness)', () => {
         outcome,
         answer: `Controlled ${outcome} text.`,
         reviewCount: 2,
+        context: { reviewsUsed: 2, truncated: false },
       });
     },
   );
@@ -142,6 +144,23 @@ describe('Q&A orchestration (deterministic harness)', () => {
     const error = await captureAppError(service.ask(OWNER, TARGET_ID, 'Question?'));
 
     expect(error.code).toBe('AI_SERVICE_UNAVAILABLE');
+  });
+
+  it('sends a trimmed context and reports it when reviews exceed the token budget', async () => {
+    const many = Array.from({ length: 6 }, (_, i) =>
+      review(`m${i}`, `${i} ${'x'.repeat(400)}`, (i % 5) + 1),
+    );
+    const { fake, service, logger } = setup(many, 300);
+
+    const result = await service.ask(OWNER, TARGET_ID, 'Summarize the reviews.');
+
+    expect(fake.lastRequest().reviews.length).toBeLessThan(6);
+    expect(fake.lastRequest().availableReviewCount).toBe(6);
+    expect(result.context).toEqual({
+      reviewsUsed: fake.lastRequest().reviews.length,
+      truncated: true,
+    });
+    expect(logger.info).toHaveBeenCalledOnce();
   });
 
   it('does not call the model when the target has no reviews', async () => {

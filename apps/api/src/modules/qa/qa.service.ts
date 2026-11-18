@@ -2,7 +2,7 @@ import type { Logger } from '../../lib/logger.js';
 import { AppError } from '../../lib/errors.js';
 import type { ReviewsRepository } from '../reviews/reviews.repository.js';
 import { getOwnedTargetOrThrow, type OwnedTargetLookup } from '../targets/owned-target.js';
-import { toContextReviews } from './qa-context.js';
+import { buildReviewContext, DEFAULT_CONTEXT_TOKEN_BUDGET } from './qa-context.js';
 import { qaModelResponseSchema, type QaModel, type QaOutcome } from './qa-model.js';
 import {
   buildSystemPrompt as defaultBuildSystemPrompt,
@@ -15,6 +15,8 @@ export interface QaServiceDependencies {
   model: QaModel;
   logger: Logger;
   buildSystemPrompt?: (target: PromptTarget) => string;
+  /** Maximum estimated tokens of review context per question (see docs/qa-context.md). */
+  contextTokenBudget?: number;
 }
 
 export interface QaAnswer {
@@ -22,7 +24,10 @@ export interface QaAnswer {
   /** `no_review_data`: The target has no reviews, so the model was not asked. */
   outcome: QaOutcome | 'no_review_data';
   answer: string;
+  /** Distinct reviews the target has (duplicates from repeated ingestion removed). */
   reviewCount: number;
+  /** How much of the dataset the answer was based on, so the UI can say so when trimmed. */
+  context: { reviewsUsed: number; truncated: boolean };
 }
 
 const AI_UNAVAILABLE_MESSAGE =
@@ -39,6 +44,7 @@ export function createQaService({
   model,
   logger,
   buildSystemPrompt = defaultBuildSystemPrompt,
+  contextTokenBudget = DEFAULT_CONTEXT_TOKEN_BUDGET,
 }: QaServiceDependencies) {
   return {
     async ask(ownerId: string, targetId: string, question: string): Promise<QaAnswer> {
@@ -54,7 +60,23 @@ export function createQaService({
           answer:
             'This target has no ingested reviews yet. Ingest reviews before asking questions.',
           reviewCount: 0,
+          context: { reviewsUsed: 0, truncated: false },
         };
+      }
+
+      // Built fresh for every question from this target's rows only: nothing from an
+      // earlier question or target can carry over (S2-BR-023, S2-BR-024).
+      const context = buildReviewContext(rows, contextTokenBudget);
+      if (context.truncated) {
+        logger.info(
+          {
+            targetId: target.id,
+            reviewsUsed: context.reviews.length,
+            availableReviews: context.availableReviews,
+            estimatedTokens: context.estimatedTokens,
+          },
+          'Q&A review context trimmed to the token budget',
+        );
       }
 
       let raw: unknown;
@@ -62,7 +84,8 @@ export function createQaService({
         raw = await model.complete({
           systemPrompt: buildSystemPrompt(summary),
           target: { name: target.name, platform: target.platform },
-          reviews: toContextReviews(rows),
+          reviews: context.reviews,
+          availableReviewCount: context.availableReviews,
           question,
         });
       } catch (error) {
@@ -77,7 +100,12 @@ export function createQaService({
         throw new AppError('AI_SERVICE_UNAVAILABLE', AI_UNAVAILABLE_MESSAGE);
       }
 
-      return { target: summary, ...parsed.data, reviewCount: rows.length };
+      return {
+        target: summary,
+        ...parsed.data,
+        reviewCount: context.availableReviews,
+        context: { reviewsUsed: context.reviews.length, truncated: context.truncated },
+      };
     },
   };
 }
