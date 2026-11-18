@@ -16,7 +16,7 @@ If datasets grow well beyond the budget, RAG-based retrieval can replace `buildR
 
 1. **Ownership and target.** The service first checks that the caller owns the target, then loads that target's reviews from the database with an owner-scoped query. Context only ever comes from persisted ReviewLens data for the active, owned target.
 2. **No carry-over.** Context is rebuilt from the database for every question. Nothing is cached, so a previously selected target's reviews cannot remain.
-3. **Duplicates removed.** Re-running ingestion stores reviews again. Reviews are the same when their source review ID matches or, without one, their rating and normalized text match. The first stored copy is kept.  
+3. **Duplicates removed.** Re-running ingestion stores reviews again. Reviews are the same when their source review ID matches or, without one, their rating and normalized text match. The latest stored copy is kept, so edits a reviewer made between ingestion runs are reflected.  
 4. **Budget.** If the estimated size exceeds the budget, reviews are selected round-robin across star ratings (1 to 5), newest first within each rating. A review that does not fit is skipped in favor of a shorter one. The result is deterministic.
 
 ## Size and token limits

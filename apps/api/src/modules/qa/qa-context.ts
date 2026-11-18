@@ -34,7 +34,7 @@ export function estimateReviewTokens(review: QaContextReview): number {
 
 /**
  * Re-running ingestion stores reviews again, so the same review can appear in
- * several rows. Keep the first stored copy.
+ * several rows. Keep the latest stored copy, so a reviewer’s edits are reflected.
  */
 export function reviewIdentity(review: Pick<Review, 'sourceReviewId' | 'rating' | 'text'>): string {
   if (review.sourceReviewId) return `source:${review.sourceReviewId}`;

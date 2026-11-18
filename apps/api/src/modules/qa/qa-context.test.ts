@@ -50,7 +50,7 @@ describe('buildReviewContext', () => {
     ]);
   });
 
-  it('removes the same review stored by two ingestion runs, keeping the first copy', () => {
+  it('removes the same review stored by two ingestion runs, keeping the latest copy', () => {
     const first = row({ sourceReviewId: 'google-123' });
     const again = row({ sourceReviewId: 'google-123' });
     const other = row();
