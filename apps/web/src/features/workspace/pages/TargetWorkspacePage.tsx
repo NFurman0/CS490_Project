@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { IngestionRunResponse } from '@reviewlens/shared';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
 import { FALLBACK_MESSAGE, ingestionMessageFor } from '../../../lib/errors';
 import { getLatestIngestionRun, startIngestionRun } from '../../ingestion/api';
+import { askQuestion, type QaAnswer } from '../../qa/api';
 import { getAnalysisTarget, type AnalysisTargetSummary } from '../../targets/api';
 
 interface WorkspaceData {
@@ -20,8 +21,32 @@ interface PageError {
   message: string;
 }
 
+interface QuestionDraft {
+  visitId: string;
+  value: string;
+  touched: boolean;
+}
+
+interface QaPageError {
+  visitId: string;
+  message: string;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : FALLBACK_MESSAGE;
+}
+
+function qaOutcomeLabel(outcome: QaAnswer['outcome']): string {
+  switch (outcome) {
+    case 'grounded_answer':
+      return 'Answer from your reviews';
+    case 'insufficient_evidence':
+      return 'Not enough review evidence';
+    case 'out_of_scope_refusal':
+      return 'Outside the review-analysis scope';
+    case 'no_review_data':
+      return 'No reviews available';
+  }
 }
 
 function statusLabel(run: IngestionRunResponse | null): string {
@@ -33,12 +58,18 @@ function statusLabel(run: IngestionRunResponse | null): string {
 
 export function TargetWorkspacePage() {
   const { targetId } = useParams();
+  const { key: locationKey } = useLocation();
   const client = useApi();
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
   const [loadError, setLoadError] = useState<PageError | null>(null);
   const [startingTargetId, setStartingTargetId] = useState<string | null>(null);
   const [startError, setStartError] = useState<PageError | null>(null);
+  const [questionDraft, setQuestionDraft] = useState<QuestionDraft | null>(null);
+  const [askingVisitId, setAskingVisitId] = useState<string | null>(null);
+  const [qaAnswer, setQaAnswer] = useState<{ visitId: string; answer: QaAnswer } | null>(null);
+  const [qaError, setQaError] = useState<QaPageError | null>(null);
   const navigationEpoch = useRef(0);
+  const qaVisitId = `${locationKey}:${targetId ?? ''}`;
 
   // React may reuse this page for another target while its earlier requests are in flight.
   // Never render a previous target's details or errors while the new target loads.
@@ -50,6 +81,17 @@ export function TargetWorkspacePage() {
       : null;
   const isLoading = !currentWorkspace && !currentLoadError;
   const isStarting = startingTargetId === targetId;
+  const currentQuestion =
+    questionDraft && questionDraft.visitId === qaVisitId
+      ? questionDraft
+      : { visitId: qaVisitId, value: '', touched: false };
+  const questionError =
+    currentQuestion.touched && !currentQuestion.value.trim()
+      ? 'Enter a question about this target’s reviews.'
+      : null;
+  const isAsking = askingVisitId === qaVisitId;
+  const currentQaAnswer = qaAnswer && qaAnswer.visitId === qaVisitId ? qaAnswer.answer : null;
+  const currentQaError = qaError && qaError.visitId === qaVisitId ? qaError.message : null;
 
   useEffect(() => {
     if (!targetId) return;
@@ -157,6 +199,32 @@ export function TargetWorkspacePage() {
     }
   }
 
+  async function handleAskQuestion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!targetId || isAsking) return;
+
+    const question = currentQuestion.value.trim();
+    setQuestionDraft({ ...currentQuestion, visitId: qaVisitId, touched: true });
+    if (!question) return;
+
+    const requestedId = targetId;
+    const epoch = navigationEpoch.current;
+    const isCurrent = () => navigationEpoch.current === epoch;
+    setAskingVisitId(qaVisitId);
+    setQaAnswer(null);
+    setQaError(null);
+    try {
+      const answer = await askQuestion(client, requestedId, question);
+      if (isCurrent()) setQaAnswer({ visitId: qaVisitId, answer });
+    } catch (error) {
+      if (isCurrent()) setQaError({ visitId: qaVisitId, message: errorMessage(error) });
+    } finally {
+      if (isCurrent()) {
+        setAskingVisitId((current) => (current === qaVisitId ? null : current));
+      }
+    }
+  }
+
   return (
     <section className="target-workspace-page">
       <Link className="workspace-back-link" to="/analysis-targets">
@@ -239,6 +307,68 @@ export function TargetWorkspacePage() {
               >
                 {isStarting ? 'Starting ingestion…' : 'Start ingestion'}
               </button>
+            </section>
+            <section className="workspace-panel workspace-qa" aria-label="Review Q&A">
+              <h2>Ask about your reviews</h2>
+              <p>
+                Ask a question about <strong>{currentWorkspace.target.name}</strong>. ReviewLens
+                answers using this target’s ingested reviews.
+              </p>
+              <form className="qa-form" onSubmit={(event) => void handleAskQuestion(event)}>
+                <div className="form-field">
+                  <label htmlFor="qa-question">Your question</label>
+                  <textarea
+                    aria-describedby={questionError ? 'qa-question-error' : undefined}
+                    aria-invalid={questionError ? 'true' : undefined}
+                    className="form-input qa-question"
+                    id="qa-question"
+                    onChange={(event) =>
+                      setQuestionDraft({
+                        visitId: qaVisitId,
+                        value: event.currentTarget.value,
+                        touched: true,
+                      })
+                    }
+                    rows={4}
+                    value={currentQuestion.value}
+                    disabled={isAsking}
+                  />
+                  {questionError && (
+                    <p className="field-error" id="qa-question-error" role="alert">
+                      {questionError}
+                    </p>
+                  )}
+                </div>
+                <button
+                  className="button button-primary"
+                  disabled={!currentQuestion.value.trim() || isAsking}
+                  type="submit"
+                >
+                  {isAsking ? 'Asking…' : 'Ask question'}
+                </button>
+              </form>
+              {isAsking && <LoadingState label="ReviewLens is analyzing your question…" />}
+              {currentQaError && (
+                <p className="form-error-summary" role="alert">
+                  {currentQaError}
+                </p>
+              )}
+              {currentQaAnswer && (
+                <section
+                  aria-label="ReviewLens response"
+                  className="qa-response"
+                  aria-live="polite"
+                >
+                  <h3>{qaOutcomeLabel(currentQaAnswer.outcome)}</h3>
+                  <p className="qa-answer">{currentQaAnswer.answer}</p>
+                  {currentQaAnswer.context.truncated && (
+                    <p className="field-hint">
+                      Based on {currentQaAnswer.context.reviewsUsed} of{' '}
+                      {currentQaAnswer.reviewCount} reviews.
+                    </p>
+                  )}
+                </section>
+              )}
             </section>
           </div>
         </>
