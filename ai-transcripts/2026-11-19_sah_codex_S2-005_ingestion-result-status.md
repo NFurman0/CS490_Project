@@ -5,7 +5,7 @@ This is an edited summary of the requests and work completed with Codex on Novem
 | Task request | Result |
 | --- | --- |
 | Complete S2-005 using the Sprint 1 branch, testing, and PR workflow. | Reviewed the Sprint 2 story and canonical rules, updated the local branch from current `origin/main`, and kept the change focused on ingestion status in the target workspace. |
-| Make the result of partial ingestion clear. | The workspace already displayed persisted running, successful, and failed runs. A successful run with an error code means reviews were saved before collection stopped early; it now displays **Partially succeeded** instead of **Succeeded**, while retaining the saved-review count and warning. |
+| Make the result of partial ingestion clear. | The workspace already displayed persisted running, successful, and failed runs. A successful run with an error code means reviews were saved before collection stopped early; it now displays **Partially succeeded** instead of **Succeeded**, while retaining the saved-review count and warning. The heading identifies this as the **latest ingestion attempt**, since a failed retry does not remove previously saved reviews. |
 | Verify the status shown to the user. | Updated the partial-result test and added a test for a persisted run still in progress. The focused workspace suite passed 17 tests, and the full web suite passed 65 tests. Lint, type checking, production build, and formatting checks for the changed code passed. |
 | Explain Git commands and report before pushing. | The author was told the branch update sequence and that no commit or push had occurred during implementation. The PR records verification results and local environment limits. |
 

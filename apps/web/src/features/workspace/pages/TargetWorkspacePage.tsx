@@ -205,7 +205,7 @@ export function TargetWorkspacePage() {
               ) : (
                 <>
                   <p>
-                    <strong>Current state:</strong> {statusLabel(currentWorkspace.run)}
+                    <strong>Latest ingestion attempt:</strong> {statusLabel(currentWorkspace.run)}
                   </p>
                   {/* The count is inserted rows for this run, not raw source records or a lifetime total. */}
                   {currentWorkspace.run?.status === 'succeeded' && (

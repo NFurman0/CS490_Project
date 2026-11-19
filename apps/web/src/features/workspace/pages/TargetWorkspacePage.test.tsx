@@ -64,6 +64,7 @@ describe('TargetWorkspacePage', () => {
       target.sourceUrl,
     );
     expect(await screen.findByText('12 reviews saved in this run.')).toBeInTheDocument();
+    expect(screen.getByText('Latest ingestion attempt:')).toBeInTheDocument();
     expect(screen.getByText('Succeeded')).toBeInTheDocument();
     expect(api.get).toHaveBeenNthCalledWith(1, '/api/analysis-targets/target-1');
     expect(api.get).toHaveBeenNthCalledWith(
