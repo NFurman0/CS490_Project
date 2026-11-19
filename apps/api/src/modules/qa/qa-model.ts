@@ -29,6 +29,8 @@ export interface QaModelRequest {
   systemPrompt: string;
   target: { name: string; platform: string };
   reviews: readonly QaContextReview[];
+  /** Distinct reviews the target has. Greater than `reviews.length` when the context was trimmed. */
+  availableReviewCount: number;
   question: string;
 }
 
