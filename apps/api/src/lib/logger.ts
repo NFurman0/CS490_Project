@@ -13,6 +13,7 @@ export const REDACT_PATHS = [
   '*.secretKey',
   '*.CLERK_SECRET_KEY',
   '*.SERPAPI_API_KEY',
+  '*.GEMINI_API_KEY',
   '*.DATABASE_URL',
   // SerpApi request URLs carry api_key as a query parameter.
   '*.url',

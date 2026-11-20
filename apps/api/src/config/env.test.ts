@@ -9,6 +9,7 @@ const validEnv = {
   CLERK_SECRET_KEY: 'sk_test_abc123',
   CLERK_PUBLISHABLE_KEY: publishableKey,
   SERPAPI_API_KEY: 'serp-key-123',
+  GEMINI_API_KEY: 'gemini-key-123',
 };
 
 function captureConfigError(source: Record<string, string | undefined>): ConfigError {
@@ -54,6 +55,30 @@ describe('loadEnv', () => {
   it('rejects a secret key copied from the dashboard in its shortened form', () => {
     const error = captureConfigError({ ...validEnv, CLERK_SECRET_KEY: 'sk_test_a…xyz' });
     expect(error.message).toContain('CLERK_SECRET_KEY is not a complete Clerk secret key');
+  });
+
+  it('requires a Gemini API key and applies the LLM defaults', () => {
+    expect(captureConfigError({ ...validEnv, GEMINI_API_KEY: undefined }).message).toContain(
+      'GEMINI_API_KEY is missing',
+    );
+
+    const env = loadEnv(validEnv);
+    expect(env.LLM_MODEL).toBe('gemini-3.8-flash');
+    expect(env.LLM_TIMEOUT_MS).toBe(30_000);
+    expect(env.QA_CONTEXT_TOKEN_BUDGET).toBe(40_000);
+    expect(env.LLM_THINKING_LEVEL).toBe('low');
+    expect(captureConfigError({ ...validEnv, LLM_THINKING_LEVEL: 'max' }).message).toContain(
+      'LLM_THINKING_LEVEL',
+    );
+  });
+
+  it('rejects the Gemini key placeholder and malformed model IDs', () => {
+    expect(captureConfigError({ ...validEnv, GEMINI_API_KEY: 'replace_me' }).message).toContain(
+      'GEMINI_API_KEY is still the .env.example placeholder',
+    );
+    expect(captureConfigError({ ...validEnv, LLM_MODEL: 'models/Gemini Flash' }).message).toContain(
+      'LLM_MODEL must be a Gemini model ID',
+    );
   });
 
   it('never includes secret values in the error message', () => {

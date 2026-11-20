@@ -173,13 +173,15 @@ Rules:
 | `DATABASE_URL` | API | **Secret** |
 | `CLERK_SECRET_KEY` | API | **Secret** |
 | `SERPAPI_API_KEY` | API | **Secret** |
+| `GEMINI_API_KEY` | API | **Secret** |
 | `CLERK_PUBLISHABLE_KEY` | API | Public (by Clerk's design) |
 | `WEB_ORIGIN` | API (CORS, `authorizedParties`) | Not secret |
 | `LOG_LEVEL`, `MAX_REVIEWS_PER_RUN` | API | Not secret |
+| `LLM_MODEL`, `LLM_TIMEOUT_MS`, `QA_CONTEXT_TOKEN_BUDGET` | API | Not secret |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Web | Public (by Clerk's design) |
 | `VITE_API_BASE_URL` | Web | Not secret |
 
-An LLM provider key will be added in Sprint 2 as an API-only secret.
+The Gemini key is sent to Google only in the `x-goog-api-key` header, never in a URL, so it cannot appear in logs (`docs/qa-llm-provider.md`).
 
 ### 6.2 Rules
 
