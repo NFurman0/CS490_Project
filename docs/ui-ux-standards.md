@@ -122,5 +122,12 @@ AI coding tools: Follow these standards and existing project patterns; preserve 
 ## 8. Reusable component expectations:
 
 - Attempt to reuse components for at least the page layout, page headings, forms and fields, buttons, status indicators, spinners, and error messages.
-
 - Extend or reuse established components before introducing a one-off variation.
+
+## 9. Review Q&A
+
+- Place the Q&A form in the active AnalysisTarget workspace and keep that target's name visible beside the question field.
+- Use a labeled multiline question field and an explicit "Ask question" action. Show required-field feedback, disable duplicate submissions, and display a visible processing state.
+- Show one response at a time; persistent chat history is not required. Label the response outcome (grounded answer, insufficient evidence, out-of-scope refusal, or no review data).
+- When the answer is based on a trimmed review context, show the number of reviews used and the total available.
+- Render answers as text, not HTML, and use safe user-facing API errors.

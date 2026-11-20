@@ -43,3 +43,7 @@ The model request includes `availableReviewCount`, and the service's answer incl
 - `apps/api/src/modules/qa/qa-context.test.ts`: all reviews when within budget, minimal fields, duplicate removal (by source ID and by text), trimming and reporting, rating balance, newest-first, skipping oversized reviews, determinism, and a 50-review run fitting the default budget.
 - `apps/api/test/integration/qa-context.test.ts` (test database): duplicates from repeated ingestion sent once, context reflects current persisted reviews on every question, and trimming reported to the caller.
 - Ownership, wrong-target, cross-user, and target-switching tests are in `test/integration/qa-harness.test.ts`.
+
+## Web integration status
+
+The web workspace expects `POST /api/analysis-targets/:targetId/qa` with `{ "question": string }` and the `QaAnswer` shape returned by `createQaService`. The current API server does not mount a Q&A route or configure a production `QaModel` adapter, so this client contract cannot return live answers until that backend integration is implemented.

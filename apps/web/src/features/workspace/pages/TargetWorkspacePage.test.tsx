@@ -276,4 +276,176 @@ describe('TargetWorkspacePage', () => {
     });
     expect(screen.getByRole('button', { name: 'Start ingestion' })).toBeEnabled();
   });
+
+  it('submits a trimmed question for the active target and displays its answer and context note', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    api.post.mockResolvedValueOnce({
+      target: { id: target.id, name: target.name, platform: 'google_maps' },
+      outcome: 'grounded_answer',
+      answer: 'Customers praise the espresso and friendly service.',
+      reviewCount: 412,
+      context: { reviewsUsed: 280, truncated: true },
+    });
+
+    renderPage();
+    const questionField = await screen.findByRole('textbox', { name: 'Your question' });
+    fireEvent.change(questionField, { target: { value: '  What do customers like?  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Answer from your reviews' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Customers praise the espresso and friendly service.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Based on 280 of 412 reviews.')).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith('/api/analysis-targets/target-1/qa', {
+      question: 'What do customers like?',
+    });
+  });
+
+  it('shows required-field feedback as the user types and prevents blank questions', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+
+    renderPage();
+    const questionField = await screen.findByRole('textbox', { name: 'Your question' });
+    expect(screen.getByRole('button', { name: 'Ask question' })).toBeDisabled();
+
+    fireEvent.change(questionField, { target: { value: '   ' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a question about this target’s reviews.',
+    );
+    expect(screen.getByRole('button', { name: 'Ask question' })).toBeDisabled();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.change(questionField, { target: { value: 'What do customers like?' } });
+    expect(
+      screen.queryByText('Enter a question about this target’s reviews.'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ask question' })).toBeEnabled();
+  });
+
+  it('shows the loading state and disables duplicate questions while a request is pending', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    let finishQuestion!: (answer: {
+      target: { id: string; name: string; platform: string };
+      outcome: 'insufficient_evidence';
+      answer: string;
+      reviewCount: number;
+      context: { reviewsUsed: number; truncated: boolean };
+    }) => void;
+    api.post.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishQuestion = resolve;
+        }),
+    );
+
+    renderPage();
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your question' }), {
+      target: { value: 'Is parking mentioned?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'ReviewLens is analyzing your question…',
+    );
+    expect(screen.getByRole('button', { name: 'Asking…' })).toBeDisabled();
+    finishQuestion({
+      target: { id: target.id, name: target.name, platform: 'google_maps' },
+      outcome: 'insufficient_evidence',
+      answer: 'The reviews do not mention parking.',
+      reviewCount: 12,
+      context: { reviewsUsed: 12, truncated: false },
+    });
+    expect(
+      await screen.findByRole('heading', { name: 'Not enough review evidence' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows a safe error when the Q&A request fails', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    api.post.mockRejectedValueOnce(new ApiError(503, 'ReviewLens could not answer right now.'));
+
+    renderPage();
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your question' }), {
+      target: { value: 'What is most popular?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'ReviewLens could not answer right now.',
+    );
+    expect(screen.getByRole('button', { name: 'Ask question' })).toBeEnabled();
+  });
+
+  it.each([
+    ['out_of_scope_refusal', 'Outside the review-analysis scope'],
+    ['no_review_data', 'No reviews available'],
+  ] as const)('labels a %s response', async (outcome, label) => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    api.post.mockResolvedValueOnce({
+      target: { id: target.id, name: target.name, platform: 'google_maps' },
+      outcome,
+      answer:
+        outcome === 'no_review_data'
+          ? 'This target has no ingested reviews yet.'
+          : 'I can only answer questions based on reviews.',
+      reviewCount: 0,
+      context: { reviewsUsed: 0, truncated: false },
+    });
+
+    renderPage();
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your question' }), {
+      target: { value: 'What is the weather?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+
+    expect(await screen.findByRole('heading', { name: label })).toBeInTheDocument();
+  });
+
+  it('does not show an earlier target response after switching analysis targets', async () => {
+    const secondTarget = { ...target, id: 'target-2', name: 'Second target' };
+    api.get
+      .mockResolvedValueOnce(target)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(secondTarget)
+      .mockResolvedValueOnce(null);
+    let finishQuestion!: (answer: {
+      target: { id: string; name: string; platform: string };
+      outcome: 'grounded_answer';
+      answer: string;
+      reviewCount: number;
+      context: { reviewsUsed: number; truncated: boolean };
+    }) => void;
+    api.post.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishQuestion = resolve;
+        }),
+    );
+
+    renderPage();
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your question' }), {
+      target: { value: 'What do customers like?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByRole('link', { name: 'Other target' }));
+
+    expect(await screen.findByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+    const secondQuestion = screen.getByRole('textbox', { name: 'Your question' });
+    expect(secondQuestion).toHaveValue('');
+    finishQuestion({
+      target: { id: target.id, name: target.name, platform: 'google_maps' },
+      outcome: 'grounded_answer',
+      answer: 'First target private response.',
+      reviewCount: 12,
+      context: { reviewsUsed: 12, truncated: false },
+    });
+
+    expect(screen.queryByText('First target private response.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });
