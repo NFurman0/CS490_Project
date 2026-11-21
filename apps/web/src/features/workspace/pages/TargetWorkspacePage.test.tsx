@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../lib/api-client';
@@ -261,6 +261,87 @@ describe('TargetWorkspacePage', () => {
     await waitFor(() => expect(screen.getByText('No ingestion attempt yet')).toBeInTheDocument());
     expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
     expect(screen.queryByText('Something went wrong on our side.')).not.toBeInTheDocument();
+  });
+
+  describe('switching the active target (S2-017)', () => {
+    const secondTarget = {
+      ...target,
+      id: 'target-2',
+      name: 'Second target',
+      sourceUrl: 'https://maps.google.com/?cid=456',
+    };
+
+    it('labels the loaded target as the active target', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(succeededRun);
+
+      renderPage();
+
+      const heading = await screen.findByRole('heading', { level: 1, name: target.name });
+      const header = heading.closest('header');
+      expect(header).not.toBeNull();
+      expect(within(header!).getByText('Active target · Google Maps reviews')).toBeInTheDocument();
+    });
+
+    it('replaces every detail of the previous target after switching', async () => {
+      let finishSecondTarget!: (value: typeof secondTarget) => void;
+      api.get
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(succeededRun)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishSecondTarget = resolve;
+            }),
+        )
+        .mockResolvedValueOnce(null);
+
+      renderPage();
+      await screen.findByText('12 reviews saved in this run.');
+      fireEvent.click(screen.getByRole('link', { name: 'Other target' }));
+
+      // While Target B loads, nothing from Target A is presented as active.
+      expect(screen.getByText('Loading target workspace…')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: target.name })).not.toBeInTheDocument();
+      expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+
+      finishSecondTarget(secondTarget);
+
+      expect(await screen.findByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+      expect(await screen.findByText('No ingestion attempt yet')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: secondTarget.sourceUrl })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: target.sourceUrl })).not.toBeInTheDocument();
+      expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+      expect(api.get).toHaveBeenNthCalledWith(3, '/api/analysis-targets/target-2');
+      expect(api.get).toHaveBeenNthCalledWith(
+        4,
+        '/api/analysis-targets/target-2/ingestion-runs/latest',
+      );
+    });
+
+    it('ignores the previous target’s load when it finishes after the switch', async () => {
+      let finishFirstTarget!: (value: typeof target) => void;
+      api.get.mockImplementation((path: string) => {
+        if (path === '/api/analysis-targets/target-1') {
+          return new Promise((resolve) => {
+            finishFirstTarget = resolve;
+          });
+        }
+        if (path === '/api/analysis-targets/target-2') return Promise.resolve(secondTarget);
+        if (path.endsWith('/target-1/ingestion-runs/latest')) return Promise.resolve(succeededRun);
+        return Promise.resolve(null);
+      });
+
+      renderPage();
+      fireEvent.click(screen.getByRole('link', { name: 'Other target' }));
+      expect(await screen.findByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+
+      finishFirstTarget(target);
+
+      await waitFor(() => expect(api.get).toHaveBeenCalledTimes(4));
+      expect(screen.getByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: target.name })).not.toBeInTheDocument();
+      expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+    });
   });
 
   it('shows a safe error when starting ingestion cannot reach the API', async () => {

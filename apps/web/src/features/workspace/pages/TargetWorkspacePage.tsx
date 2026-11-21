@@ -8,6 +8,7 @@ import { FALLBACK_MESSAGE, ingestionMessageFor } from '../../../lib/errors';
 import { getLatestIngestionRun, startIngestionRun } from '../../ingestion/api';
 import { askQuestion, type QaAnswer } from '../../qa/api';
 import { getAnalysisTarget, type AnalysisTargetSummary } from '../../targets/api';
+import { ActiveTargetHeader } from '../../targets/components/ActiveTargetHeader';
 
 interface WorkspaceData {
   targetId: string;
@@ -238,10 +239,10 @@ export function TargetWorkspacePage() {
       )}
       {currentWorkspace && (
         <>
-          <header className="page-heading">
-            <p className="eyebrow">ANALYSIS TARGET WORKSPACE</p>
-            <h1>{currentWorkspace.target.name}</h1>
-          </header>
+          <ActiveTargetHeader
+            surface="Analysis target workspace"
+            target={currentWorkspace.target}
+          />
           <div className="workspace-grid">
             <section className="workspace-panel" aria-label="Target details">
               <h2>Target details</h2>
