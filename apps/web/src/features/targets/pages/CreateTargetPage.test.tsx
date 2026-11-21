@@ -69,7 +69,7 @@ describe('CreateTargetPage', () => {
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/api/analysis-targets', validInput);
     });
-    expect(await screen.findByRole('status')).toHaveTextContent('Target created');
+    expect(await screen.findByRole('heading', { name: 'Target created' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent("Joe's Pizza is saved to your account");
     expect(screen.getByRole('link', { name: 'Open target workspace' })).toHaveAttribute(
       'href',

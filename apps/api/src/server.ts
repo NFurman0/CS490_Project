@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { createClerkIdentityProvider } from './adapters/clerk/clerk-identity-provider.js';
+import { createGeminiQaModel } from './adapters/gemini/gemini-qa-model.js';
 import {
   DEFAULT_SOURCE_RESOLUTION_TIMEOUT_MS,
   resolvePlaceRef,
@@ -15,6 +16,8 @@ import {
   INGESTION_RUNS_PATH,
 } from './modules/ingestion/ingestion.routes.js';
 import { createIngestionService } from './modules/ingestion/ingestion.service.js';
+import { createQaRouter, QA_PATH } from './modules/qa/qa.routes.js';
+import { createQaService } from './modules/qa/qa.service.js';
 import { createReviewsRepository } from './modules/reviews/reviews.repository.js';
 import { createReviewsRouter, REVIEWS_PATH } from './modules/reviews/reviews.routes.js';
 import { createReviewsService } from './modules/reviews/reviews.service.js';
@@ -68,6 +71,19 @@ const ingestionService = createIngestionService({
   maxReviewsPerRun: env.MAX_REVIEWS_PER_RUN,
   logger,
 });
+const qaService = createQaService({
+  targets: targetsRepository,
+  reviews: reviewsRepository,
+  model: createGeminiQaModel({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.LLM_MODEL,
+    timeoutMs: env.LLM_TIMEOUT_MS,
+    thinkingLevel: env.LLM_THINKING_LEVEL,
+    logger,
+  }),
+  logger,
+  contextTokenBudget: env.QA_CONTEXT_TOKEN_BUDGET,
+});
 const app = createApp({
   logger,
   webOrigin: env.WEB_ORIGIN,
@@ -82,6 +98,7 @@ const app = createApp({
       path: REVIEWS_PATH,
       router: createReviewsRouter(createReviewsService(targetsRepository, reviewsRepository)),
     },
+    { path: QA_PATH, router: createQaRouter(qaService) },
   ],
 });
 

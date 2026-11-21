@@ -1,0 +1,17 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "{\"outcome\": \"grounded_answer\", \"answer\": \"Several reviewers praise the oat latte, while 2 of 3 reviews complain that the Wi-Fi drops often.\"}"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 412, "candidatesTokenCount": 38, "totalTokenCount": 450 }
+}
