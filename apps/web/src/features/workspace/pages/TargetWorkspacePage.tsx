@@ -52,7 +52,7 @@ function qaOutcomeLabel(outcome: QaAnswer['outcome']): string {
 function statusLabel(run: IngestionRunResponse | null): string {
   if (!run) return 'No ingestion attempt yet';
   if (run.status === 'running') return 'In progress';
-  if (run.status === 'succeeded') return 'Succeeded';
+  if (run.status === 'succeeded') return run.errorCode ? 'Partially succeeded' : 'Succeeded';
   return 'Failed';
 }
 
@@ -273,7 +273,7 @@ export function TargetWorkspacePage() {
               ) : (
                 <>
                   <p>
-                    <strong>Current state:</strong> {statusLabel(currentWorkspace.run)}
+                    <strong>Latest ingestion attempt:</strong> {statusLabel(currentWorkspace.run)}
                   </p>
                   {/* The count is inserted rows for this run, not raw source records or a lifetime total. */}
                   {currentWorkspace.run?.status === 'succeeded' && (

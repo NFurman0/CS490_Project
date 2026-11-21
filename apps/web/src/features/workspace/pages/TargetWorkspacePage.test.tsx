@@ -64,6 +64,7 @@ describe('TargetWorkspacePage', () => {
       target.sourceUrl,
     );
     expect(await screen.findByText('12 reviews saved in this run.')).toBeInTheDocument();
+    expect(screen.getByText('Latest ingestion attempt:')).toBeInTheDocument();
     expect(screen.getByText('Succeeded')).toBeInTheDocument();
     expect(api.get).toHaveBeenNthCalledWith(1, '/api/analysis-targets/target-1');
     expect(api.get).toHaveBeenNthCalledWith(
@@ -82,6 +83,20 @@ describe('TargetWorkspacePage', () => {
 
     expect(await screen.findByText('12 reviews saved in this run.')).toBeInTheDocument();
     expect(screen.getByText('Succeeded')).toBeInTheDocument();
+  });
+
+  it('shows a persisted running ingestion as in progress', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce({
+      ...succeededRun,
+      status: 'running',
+      reviewCount: 0,
+      completedAt: null,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('In progress')).toBeInTheDocument();
+    expect(screen.queryByText(/reviews saved in this run/)).not.toBeInTheDocument();
   });
 
   it.each([
@@ -112,7 +127,7 @@ describe('TargetWorkspacePage', () => {
     expect(screen.queryByText(/reviews saved in this run/)).not.toBeInTheDocument();
   });
 
-  it('shows saved reviews and warns when collection stopped early', async () => {
+  it('marks a saved run as partially succeeded when collection stopped early', async () => {
     api.get.mockResolvedValueOnce(target).mockResolvedValueOnce({
       ...succeededRun,
       errorCode: 'PROVIDER_TIMEOUT',
@@ -121,7 +136,7 @@ describe('TargetWorkspacePage', () => {
     renderPage();
 
     expect(await screen.findByText('12 reviews saved in this run.')).toBeInTheDocument();
-    expect(screen.getByText('Succeeded')).toBeInTheDocument();
+    expect(screen.getByText('Partially succeeded')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Collection stopped early. The review source timed out.',
     );

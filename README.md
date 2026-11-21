@@ -28,6 +28,7 @@ Before writing code, read:
 - **npm** (comes with Node)
 - **Docker Desktop**, for the local database
 - Access to the team's **Clerk** development instance and a **SerpApi** API key.
+- A **Gemini API key** from Google AI Studio, in your own Google project (see [`docs/qa-llm-provider.md`](docs/qa-llm-provider.md)).
 
 ## First-time setup
 
