@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=json --coverage.reporter=text-summary --coverage.include='src/**/*.ts' --coverage.exclude='src/**/*.test.ts'",
-    "record:fixture": "tsx --conditions=source scripts/record-serpapi-fixture.ts"
+    "record:fixture": "tsx --conditions=source scripts/record-serpapi-fixture.ts",
+    "llm:smoke": "tsx --conditions=source scripts/llm-smoke.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.88",

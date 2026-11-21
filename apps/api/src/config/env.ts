@@ -28,6 +28,20 @@ const envSchema = z.object({
     .min(1)
     .refine((v) => !placeholder.test(v), 'is still the .env.example placeholder'),
   MAX_REVIEWS_PER_RUN: z.coerce.number().int().min(1).max(500).default(50),
+  GEMINI_API_KEY: z
+    .string()
+    .min(1)
+    .refine((v) => !placeholder.test(v), 'is still the .env.example placeholder'),
+  // A stable (non-preview) Gemini model ID listed in Google AI Studio.
+  LLM_MODEL: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]*$/, 'must be a Gemini model ID such as gemini-3.8-flash')
+    .default('gemini-3.8-flash'),
+  LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
+  // How much Gemini 3 models reason before answering; "off" for Gemini 2.5 models.
+  LLM_THINKING_LEVEL: z.enum(['off', 'minimal', 'low', 'medium', 'high']).default('low'),
+  // Estimated tokens of review context per question.
+  QA_CONTEXT_TOKEN_BUDGET: z.coerce.number().int().min(2_000).max(500_000).default(40_000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 
