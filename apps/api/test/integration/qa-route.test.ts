@@ -102,6 +102,8 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
 
     const res = await request(app)
       .post(qaUrl(seeded.target.id))
+      .set('x-user-id', 'clerk_a')
+      .set('x-clerk-user-id', 'clerk_a')
       .send({ question: 'Hi?' })
       .expect(401);
 
@@ -121,6 +123,42 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
     expect(res.body.error.code).toBe('NOT_FOUND');
     expect(JSON.stringify(res.body)).not.toContain('Copper Kettle Cafe');
     expect(fake.requests).toHaveLength(0);
+  });
+
+  it("does not expose another user's reviews when an authenticated user asks about them", async () => {
+    const secretReview = 'Only User A saw the secret blue lantern dessert.';
+    await seedTargetWithReviews('clerk_a', 'Copper Kettle Cafe', [
+      { text: secretReview, rating: 5 },
+    ]);
+    const userB = await seedTargetWithReviews('clerk_b', 'Volt Phone', [
+      { text: 'Battery life lasts all weekend.', rating: 4 },
+    ]);
+    const fake = createFakeQaModel((modelRequest) => {
+      const containsUserAReview = modelRequest.reviews.some((review) =>
+        review.text.includes(secretReview),
+      );
+      return containsUserAReview
+        ? { outcome: 'grounded_answer', answer: `User A's review mentions ${secretReview}` }
+        : {
+            outcome: 'insufficient_evidence',
+            answer: 'The active target’s reviews do not provide evidence about that detail.',
+          };
+    });
+    const { app } = appAs('clerk_b', fake);
+
+    const res = await request(app)
+      .post(qaUrl(userB.target.id))
+      .send({ question: 'What did the Copper Kettle Cafe review say about its dessert?' })
+      .expect(200);
+
+    expect(fake.lastRequest().target).toEqual({ name: 'Volt Phone', platform: 'GOOGLE_MAPS' });
+    expect(fake.lastRequest().reviews.map((review) => review.text)).toEqual([
+      'Battery life lasts all weekend.',
+    ]);
+    expect(JSON.stringify(fake.lastRequest().reviews)).not.toContain(secretReview);
+    expect(res.body.data.outcome).toBe('insufficient_evidence');
+    expect(res.body.data.answer).not.toContain(secretReview);
+    expect(JSON.stringify(res.body)).not.toContain(secretReview);
   });
 
   it('returns 404 for a target ID that is not a UUID', async () => {

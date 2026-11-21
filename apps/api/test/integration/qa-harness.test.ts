@@ -61,12 +61,28 @@ describe.skipIf(!hasTestDatabase)('Q&A model boundary with persisted reviews (da
   it("never supplies another user's reviews, even when the question asks for them", async () => {
     await seedTargetWithReviews('clerk_a', 'Copper Kettle Cafe', [{ text: SECRET, rating: 5 }]);
     const b1 = await seedTargetWithReviews('clerk_b', 'Volt Phone', [{ text: BATTERY, rating: 4 }]);
-    const { fake, service } = serviceWith();
+    const fake = createFakeQaModel((request) => {
+      const containsUserAReview = request.reviews.some((review) => review.text.includes(SECRET));
+      return containsUserAReview
+        ? { outcome: 'grounded_answer', answer: `The reviews mention ${SECRET}.` }
+        : {
+            outcome: 'insufficient_evidence',
+            answer: 'The active target’s reviews do not provide evidence about that detail.',
+          };
+    });
+    const { service } = serviceWith(fake);
 
-    await service.ask(b1.ownerId, b1.target.id, 'Do any reviews mention zebra-striped cups?');
+    const result = await service.ask(
+      b1.ownerId,
+      b1.target.id,
+      'Do any reviews mention zebra-striped espresso cups?',
+    );
 
-    expect(fake.lastRequest().reviews.map((review) => review.text)).toEqual([BATTERY]);
-    expect(JSON.stringify(fake.lastRequest().reviews)).not.toContain(SECRET);
+    const modelContext = fake.lastRequest().reviews;
+    expect(modelContext.map((review) => review.text)).toEqual([BATTERY]);
+    expect(JSON.stringify(modelContext)).not.toContain(SECRET);
+    expect(result.outcome).toBe('insufficient_evidence');
+    expect(result.answer).not.toContain(SECRET);
   });
 
   it("refuses a question on another user's target without calling the model", async () => {
