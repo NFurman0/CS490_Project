@@ -282,6 +282,40 @@ describe('TargetWorkspacePage', () => {
       expect(within(header!).getByText('Active target · Google Maps reviews')).toBeInTheDocument();
     });
 
+    it('names the target in the ingestion panel above its saved count', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(succeededRun);
+
+      renderPage();
+
+      const ingestion = await screen.findByRole('region', { name: 'Review ingestion' });
+      expect(ingestion).toHaveTextContent(`Reviews for ${target.name}`);
+      expect(
+        await within(ingestion).findByText('12 reviews saved in this run.'),
+      ).toBeInTheDocument();
+    });
+
+    it('says whose dataset it is before the first ingestion', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+
+      renderPage();
+
+      const ingestion = await screen.findByRole('region', { name: 'Review ingestion' });
+      expect(ingestion).toHaveTextContent(`Reviews for ${target.name}`);
+      expect(await within(ingestion).findByText('No ingestion attempt yet')).toBeInTheDocument();
+    });
+
+    it('says whose dataset it is when the ingestion state cannot be loaded', async () => {
+      api.get.mockResolvedValueOnce(target).mockRejectedValueOnce(new ApiError(500, 'Try again.'));
+
+      renderPage();
+
+      const ingestion = await screen.findByRole('region', { name: 'Review ingestion' });
+      expect(ingestion).toHaveTextContent(`Reviews for ${target.name}`);
+      expect(within(ingestion).getByRole('alert')).toHaveTextContent(
+        'Could not load the current ingestion state. Try again.',
+      );
+    });
+
     it('replaces every detail of the previous target after switching', async () => {
       let finishSecondTarget!: (value: typeof secondTarget) => void;
       api.get
@@ -311,6 +345,17 @@ describe('TargetWorkspacePage', () => {
       expect(screen.getByRole('link', { name: secondTarget.sourceUrl })).toBeInTheDocument();
       expect(screen.queryByRole('link', { name: target.sourceUrl })).not.toBeInTheDocument();
       expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+
+      // Every surface names Target B, and none still names Target A.
+      const ingestion = screen.getByRole('region', { name: 'Review ingestion' });
+      const qa = screen.getByRole('region', { name: 'Review Q&A' });
+      expect(ingestion).toHaveTextContent('Reviews for Second target');
+      expect(within(ingestion).getByText('No ingestion attempt yet')).toBeInTheDocument();
+      expect(qa).toHaveTextContent('Ask a question about Second target');
+      for (const surface of [ingestion, qa]) {
+        expect(surface).not.toHaveTextContent(target.name);
+      }
+      expect(screen.queryByText(target.name)).not.toBeInTheDocument();
       expect(api.get).toHaveBeenNthCalledWith(3, '/api/analysis-targets/target-2');
       expect(api.get).toHaveBeenNthCalledWith(
         4,

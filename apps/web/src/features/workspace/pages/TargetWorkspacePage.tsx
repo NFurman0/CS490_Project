@@ -267,6 +267,9 @@ export function TargetWorkspacePage() {
             </section>
             <section className="workspace-panel" aria-label="Review ingestion">
               <h2>Review ingestion</h2>
+              <p className="workspace-panel-target">
+                Reviews for <strong>{currentWorkspace.target.name}</strong>
+              </p>
               {currentWorkspace.statusError ? (
                 <p className="form-error-summary" role="alert">
                   {currentWorkspace.statusError}
@@ -278,7 +281,7 @@ export function TargetWorkspacePage() {
                   </p>
                   {/* The count is inserted rows for this run, not raw source records or a lifetime total. */}
                   {currentWorkspace.run?.status === 'succeeded' && (
-                    <p>{currentWorkspace.run.reviewCount} reviews saved in this run.</p>
+                    <p>{`${currentWorkspace.run.reviewCount} reviews saved in this run.`}</p>
                   )}
                   {/* A later-page error warns about collection, but does not undo saved reviews. */}
                   {currentWorkspace.run?.status === 'succeeded' &&
