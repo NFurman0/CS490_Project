@@ -19,6 +19,26 @@ If datasets grow well beyond the budget, RAG-based retrieval can replace `buildR
 3. **Duplicates removed.** Re-running ingestion stores reviews again. Reviews are the same when their source review ID matches or, without one, their rating and normalized text match. The latest stored copy is kept, so edits a reviewer made between ingestion runs are reflected. The shared selector in `apps/api/src/modules/reviews/active-review-dataset.ts` also supplies the ingestion summary, so its count and ratings use this same distinct dataset.
 4. **Budget.** If the estimated size exceeds the budget, reviews are selected round-robin across star ratings (1 to 5), newest first within each rating. A review that does not fit is skipped in favor of a shorter one. The result is deterministic.
 
+## No stale context between questions (S2-019)
+
+No layer keeps review context from one question to the next, so reviews from a previously active target (or another user) cannot reach a new question (S2-BR-022 to S2-BR-024).
+
+| Layer | Holds Q&A state? | Why it cannot go stale |
+| --- | --- | --- |
+| Frontend | Per visit only | `TargetWorkspacePage` keys the question draft, answer, and errors by `visitId` (location key + target ID), so none of them render after a switch. A response that arrives after a switch is dropped (`navigationEpoch`), and one naming a different target is rejected. |
+| Backend session | No | Each request carries the user (from auth), target (from the URL), and question. The Q&A service keeps no per-user or per-target state between calls. |
+| Database | Source of truth | `findByTarget` filters by `targetId` and owner in SQL, and is read again for every question. |
+| Retrieval index | None | Context is the whole deduplicated dataset (see above). There are no embeddings or vector store. |
+| External AI | No | The Gemini adapter makes one `generateContent` call per question containing only the current question and reviews. It does not use chat sessions, history, or cached content. |
+
+**If a cache is added later** (for example, of loaded reviews or built context):
+
+- Key it by both `ownerId` and `targetId`. Never by target name or question alone.
+- Clear it whenever ingestion saves reviews for that target, so re-ingested or edited reviews are used on the next question.
+- Keep the ownership check before any cache read.
+
+The S2-019 tests below fail if a cache breaks any of these rules.
+
 ## Size and token limits
 
 | Setting | Value | Where |
@@ -43,6 +63,8 @@ The model request includes `availableReviewCount`, and the service's answer incl
 - `apps/api/src/modules/qa/qa-context.test.ts`: all reviews when within budget, minimal fields, duplicate removal (by source ID and by text), trimming and reporting, rating balance, newest-first, skipping oversized reviews, determinism, and a 50-review run fitting the default budget.
 - `apps/api/test/integration/qa-context.test.ts` (test database): duplicates from repeated ingestion sent once, context reflects current persisted reviews on every question, and trimming reported to the caller.
 - Ownership, wrong-target, cross-user, and target-switching tests are in `test/integration/qa-harness.test.ts`.
+- S2-019 (`no stale context between requests` in `qa-harness.test.ts`, test database): questions about two targets at the same time, no earlier question or answer sent, re-ingested reviews used on the next question about the same target, switching to a target with no reviews, and two users asking the same question about targets with the same name.
+- S2-019 (`no stale Q&A state after switching targets` in `apps/web/src/features/workspace/pages/TargetWorkspacePage.test.tsx`): an unsent question and Q&A or validation errors do not carry over to the next target.
 
 ## Web integration status
 
