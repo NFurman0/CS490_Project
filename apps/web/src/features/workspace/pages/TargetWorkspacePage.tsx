@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { IngestionRunResponse } from '@reviewlens/shared';
+import type { IngestionRunResponse, ReviewSummary } from '@reviewlens/shared';
 import { Link, useLocation, useParams } from 'react-router';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
@@ -7,6 +7,7 @@ import { useApi } from '../../../lib/api-context';
 import { FALLBACK_MESSAGE, ingestionMessageFor } from '../../../lib/errors';
 import { getLatestIngestionRun, startIngestionRun } from '../../ingestion/api';
 import { askQuestion, type QaAnswer } from '../../qa/api';
+import { getReviewSummary } from '../../reviews/api';
 import { getAnalysisTarget, type AnalysisTargetSummary } from '../../targets/api';
 import { ActiveTargetHeader } from '../../targets/components/ActiveTargetHeader';
 
@@ -15,6 +16,8 @@ interface WorkspaceData {
   target: AnalysisTargetSummary;
   run: IngestionRunResponse | null;
   statusError: string | null;
+  summary: ReviewSummary | null;
+  summaryError: string | null;
 }
 
 interface PageError {
@@ -116,7 +119,15 @@ export function TargetWorkspacePage() {
           // without claiming a missing run means there have been no attempts.
           statusError = 'Could not load the current ingestion state. Try again.';
         }
-        if (active) setWorkspace({ targetId: requestedId, target, run, statusError });
+        let summary: ReviewSummary | null = null;
+        let summaryError: string | null = null;
+        try {
+          summary = await getReviewSummary(client, requestedId);
+        } catch {
+          summaryError = 'Could not load the saved review summary. Try again.';
+        }
+        if (active)
+          setWorkspace({ targetId: requestedId, target, run, statusError, summary, summaryError });
       } catch (error) {
         if (active) {
           setLoadError({
@@ -150,6 +161,11 @@ export function TargetWorkspacePage() {
     const isCurrent = () => navigationEpoch.current === epoch;
     setStartingTargetId(requestedId);
     setStartError(null);
+    setWorkspace((current) =>
+      current?.targetId === requestedId
+        ? { ...current, summary: null, summaryError: null }
+        : current,
+    );
     try {
       const run = await startIngestionRun(client, requestedId);
       if (isCurrent()) {
@@ -201,6 +217,28 @@ export function TargetWorkspacePage() {
         }
       }
     } finally {
+      if (isCurrent()) {
+        try {
+          const summary = await getReviewSummary(client, requestedId);
+          if (isCurrent())
+            setWorkspace((current) =>
+              current?.targetId === requestedId
+                ? { ...current, summary, summaryError: null }
+                : current,
+            );
+        } catch {
+          if (isCurrent())
+            setWorkspace((current) =>
+              current?.targetId === requestedId
+                ? {
+                    ...current,
+                    summary: null,
+                    summaryError: 'Could not refresh the saved review summary. Try again.',
+                  }
+                : current,
+            );
+        }
+      }
       setStartingTargetId((current) => (current === requestedId ? null : current));
     }
   }
@@ -274,6 +312,31 @@ export function TargetWorkspacePage() {
                   </dd>
                 </div>
               </dl>
+            </section>
+            <section className="workspace-panel" aria-label="Saved review summary">
+              <h2>Saved review summary</h2>
+              {currentWorkspace.summaryError ? (
+                <p className="form-error-summary" role="alert">
+                  {currentWorkspace.summaryError}
+                </p>
+              ) : currentWorkspace.summary ? (
+                <dl className="workspace-details">
+                  <div>
+                    <dt>Reviews in active dataset</dt>
+                    <dd>{currentWorkspace.summary.reviewCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Average rating</dt>
+                    <dd>
+                      {currentWorkspace.summary.averageRating === null
+                        ? 'No rating yet'
+                        : `${currentWorkspace.summary.averageRating.toFixed(1)} out of 5`}
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <LoadingState label="Loading saved review summary…" />
+              )}
             </section>
             <section className="workspace-panel" aria-label="Review ingestion">
               <h2>Review ingestion</h2>

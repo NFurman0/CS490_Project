@@ -1,5 +1,8 @@
 import type { Review } from '@prisma/client';
+import { selectActiveReviewRows } from '../reviews/active-review-dataset.js';
 import type { QaContextReview } from './qa-model.js';
+
+export { reviewIdentity } from '../reviews/active-review-dataset.js';
 
 /**
  * Send ALL of the active target's reviews, deduplicated, up to a token budget.
@@ -32,15 +35,6 @@ export function estimateReviewTokens(review: QaContextReview): number {
   return Math.ceil(characters / CHARS_PER_TOKEN) + PER_REVIEW_OVERHEAD_TOKENS;
 }
 
-/**
- * Re-running ingestion stores reviews again, so the same review can appear in
- * several rows. Keep the latest stored copy, so a reviewer’s edits are reflected.
- */
-export function reviewIdentity(review: Pick<Review, 'sourceReviewId' | 'rating' | 'text'>): string {
-  if (review.sourceReviewId) return `source:${review.sourceReviewId}`;
-  return `text:${review.rating}:${review.text.trim().replace(/\s+/g, ' ').toLowerCase()}`;
-}
-
 function toContextReview(review: Review): QaContextReview {
   // Owner IDs, target IDs, URLs, and provider metadata never cross the model boundary.
   return {
@@ -66,21 +60,7 @@ export function buildReviewContext(
   rows: readonly Review[],
   tokenBudget: number = DEFAULT_CONTEXT_TOKEN_BUDGET,
 ): ReviewContext {
-  // Rows arrive oldest first, so a later copy is the most recent ingestion of that
-  // review (for example, after the reviewer edited it). Keep that copy, at the
-  // position where the review first appeared.
-  const positionByIdentity = new Map<string, number>();
-  const distinct: Review[] = [];
-  for (const row of rows) {
-    const identity = reviewIdentity(row);
-    const position = positionByIdentity.get(identity);
-    if (position === undefined) {
-      positionByIdentity.set(identity, distinct.length);
-      distinct.push(row);
-    } else {
-      distinct[position] = row;
-    }
-  }
+  const distinct = selectActiveReviewRows(rows);
 
   const candidates = distinct.map((row, order) => {
     const review = toContextReview(row);
