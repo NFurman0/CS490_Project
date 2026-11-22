@@ -253,5 +253,27 @@ describe.skipIf(!hasTestDatabase)('Q&A model boundary with persisted reviews (da
       });
       expect(JSON.stringify(result)).not.toContain(BATTERY);
     });
+
+    it('does not carry one user’s context into the next user’s identical question', async () => {
+      // Same target name and same question for both users, so only the owner
+      // separates them: a cache keyed by name or question alone would leak here.
+      const userA = await seedTargetWithReviews('clerk_a', 'Copper Kettle Cafe', [
+        { text: SECRET, rating: 5 },
+      ]);
+      const userB = await seedTargetWithReviews('clerk_b', 'Copper Kettle Cafe', [
+        { text: SERVICE, rating: 4 },
+      ]);
+      const question = 'What do reviewers mention most?';
+      const { fake, service } = serviceWith();
+
+      await service.ask(userA.ownerId, userA.target.id, question);
+      const result = await service.ask(userB.ownerId, userB.target.id, question);
+
+      expect(fake.requests).toHaveLength(2);
+      expect(fake.lastRequest().reviews.map((review) => review.id)).toEqual(userB.reviewIds);
+      expect(JSON.stringify(fake.lastRequest())).not.toContain(SECRET);
+      expect(result.target.id).toBe(userB.target.id);
+      expect(JSON.stringify(result)).not.toContain(SECRET);
+    });
   });
 });
