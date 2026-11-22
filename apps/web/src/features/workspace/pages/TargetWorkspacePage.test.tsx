@@ -5,10 +5,12 @@ import { ApiError } from '../../../lib/api-client';
 import { TargetWorkspacePage } from './TargetWorkspacePage';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+const reviewSummary = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('../../../lib/api-context', () => ({
   useApi: () => api,
 }));
+vi.mock('../../reviews/api', () => ({ getReviewSummary: reviewSummary.get }));
 
 const target = {
   id: 'target-1',
@@ -50,6 +52,101 @@ describe('TargetWorkspacePage', () => {
   beforeEach(() => {
     api.get.mockReset();
     api.post.mockReset();
+    reviewSummary.get.mockReset();
+    reviewSummary.get.mockResolvedValue({
+      target: { id: target.id, name: target.name, platform: 'google_maps' },
+      reviewCount: 12,
+      averageRating: 4.25,
+    });
+  });
+
+  it('shows the exact saved count and rating independently of the latest run', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce({
+      ...succeededRun,
+      status: 'failed',
+      reviewCount: 0,
+      errorCode: 'PROVIDER_ERROR',
+    });
+    renderPage();
+
+    const summary = await screen.findByRole('region', { name: 'Saved review summary' });
+    expect(summary).toHaveTextContent('Reviews in active dataset12');
+    expect(summary).toHaveTextContent('Average rating4.3 out of 5');
+    expect(reviewSummary.get).toHaveBeenCalledWith(api, target.id);
+    expect(screen.getByText('Failed')).toBeInTheDocument();
+  });
+
+  it('shows zero and no rating for an empty saved dataset', async () => {
+    reviewSummary.get.mockResolvedValueOnce({
+      target: { id: target.id, name: target.name, platform: 'google_maps' },
+      reviewCount: 0,
+      averageRating: null,
+    });
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    renderPage();
+
+    const summary = await screen.findByRole('region', { name: 'Saved review summary' });
+    expect(summary).toHaveTextContent('Reviews in active dataset0');
+    expect(summary).toHaveTextContent('No rating yet');
+  });
+
+  it('refreshes the saved summary after ingestion succeeds', async () => {
+    reviewSummary.get
+      .mockResolvedValueOnce({
+        target: { id: target.id, name: target.name, platform: 'google_maps' },
+        reviewCount: 0,
+        averageRating: null,
+      })
+      .mockResolvedValueOnce({
+        target: { id: target.id, name: target.name, platform: 'google_maps' },
+        reviewCount: 2,
+        averageRating: 3.5,
+      });
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    api.post.mockResolvedValueOnce(succeededRun);
+    renderPage();
+
+    await screen.findByText('No rating yet');
+    fireEvent.click(screen.getByRole('button', { name: 'Start ingestion' }));
+    expect(await screen.findByText('3.5 out of 5')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('12 reviews saved in this run.')).toBeInTheDocument();
+    expect(reviewSummary.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not present a saved-review count when its request fails', async () => {
+    reviewSummary.get.mockRejectedValueOnce(new ApiError(503, 'Internal error'));
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    renderPage();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load the saved review summary. Try again.',
+    );
+    expect(screen.queryByText('12')).not.toBeInTheDocument();
+    expect(screen.queryByText('Internal error')).not.toBeInTheDocument();
+  });
+
+  it('reloads saved reviews even when an ingestion request reports failure', async () => {
+    reviewSummary.get
+      .mockResolvedValueOnce({
+        target: { id: target.id, name: target.name, platform: 'google_maps' },
+        reviewCount: 1,
+        averageRating: 5,
+      })
+      .mockResolvedValueOnce({
+        target: { id: target.id, name: target.name, platform: 'google_maps' },
+        reviewCount: 2,
+        averageRating: 3,
+      });
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    api.post.mockRejectedValueOnce(new ApiError(500, 'Something went wrong on our side.'));
+    renderPage();
+
+    await screen.findByText('5.0 out of 5');
+    fireEvent.click(screen.getByRole('button', { name: 'Start ingestion' }));
+    expect(screen.queryByText('5.0 out of 5')).not.toBeInTheDocument();
+    expect(await screen.findByText('3.0 out of 5')).toBeInTheDocument();
+    expect(reviewSummary.get).toHaveBeenCalledTimes(2);
   });
 
   it('shows the active target and its latest ingestion state', async () => {
