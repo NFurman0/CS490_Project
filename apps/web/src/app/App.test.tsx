@@ -44,6 +44,12 @@ function renderAt(path: string) {
       };
     } else if (pathname.endsWith('/analysis-targets/target-1/ingestion-runs/latest')) {
       data = null;
+    } else if (pathname.endsWith('/analysis-targets/target-1/reviews/summary')) {
+      data = {
+        target: { id: 'target-1', name: 'My coffee shop', platform: 'google_maps' },
+        reviewCount: 3,
+        averageRating: 4,
+      };
     }
     return new Response(JSON.stringify({ data }), { status: 200 });
   });
@@ -112,6 +118,7 @@ describe('protected pages', () => {
     const signedIn = renderAt('/analysis-targets/target-1');
 
     expect(await screen.findByRole('heading', { name: 'My coffee shop' })).toBeInTheDocument();
+    expect(await screen.findByText('4.0 out of 5')).toBeInTheDocument();
     expect(signedIn.fetchMock).toHaveBeenCalledWith(
       new URL('http://localhost:3000/api/analysis-targets/target-1'),
       expect.any(Object),
