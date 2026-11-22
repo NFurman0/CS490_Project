@@ -189,5 +189,69 @@ describe.skipIf(!hasTestDatabase)('Q&A model boundary with persisted reviews (da
       expect(sent).not.toContain(firstAnswer);
       expect(sent).not.toContain(BATTERY);
     });
+
+    it('uses re-ingested reviews on the next question about the same target', async () => {
+      const a1 = await seedTargetWithReviews('clerk_a', 'Volt Phone', []);
+      const reviews = createReviewsRepository(testPrisma);
+      // Saves a batch through the same path ingestion uses, as one finished run.
+      async function ingest(batch: { sourceReviewId: string; text: string; rating: number }[]) {
+        const run = await testPrisma.ingestionRun.create({
+          data: { targetId: a1.target.id, status: 'RUNNING' },
+        });
+        await reviews.saveBatchAndFinishRun(
+          a1.ownerId,
+          a1.target.id,
+          run.id,
+          batch.map((review) => ({
+            ...review,
+            reviewerName: null,
+            publishedAt: null,
+            reviewUrl: null,
+            metadata: {},
+          })),
+          null,
+        );
+      }
+      const { fake, service } = serviceWith();
+
+      await ingest([{ sourceReviewId: 'google-7', text: 'Checkout line was slow.', rating: 2 }]);
+      await service.ask(a1.ownerId, a1.target.id, 'How is checkout?');
+      // The reviewer edits their review and a new one arrives; ingestion runs again.
+      await ingest([
+        { sourceReviewId: 'google-7', text: 'Checkout line moves quickly now.', rating: 4 },
+        { sourceReviewId: 'google-8', text: 'Staff helped me at self-checkout.', rating: 5 },
+      ]);
+      await service.ask(a1.ownerId, a1.target.id, 'How is checkout?');
+
+      // A context cached from the first question would still hold the old text.
+      expect(fake.requests).toHaveLength(2);
+      expect(fake.lastRequest().reviews.map((review) => review.text)).toEqual([
+        'Checkout line moves quickly now.',
+        'Staff helped me at self-checkout.',
+      ]);
+      expect(JSON.stringify(fake.lastRequest())).not.toContain('Checkout line was slow.');
+    });
+
+    it('does not reuse the previous target’s reviews when the new target has none', async () => {
+      const a1 = await seedTargetWithReviews('clerk_a', 'Volt Phone', [
+        { text: BATTERY, rating: 5 },
+      ]);
+      const empty = await seedTargetWithReviews('clerk_a', 'Helpdesk Pro', []);
+      const { fake, service } = serviceWith();
+
+      await service.ask(a1.ownerId, a1.target.id, 'What stands out?');
+      const result = await service.ask(empty.ownerId, empty.target.id, 'What stands out?');
+
+      // Only Target A's question reached the model; the empty target never did.
+      expect(fake.requests).toHaveLength(1);
+      expect(fake.lastRequest().target.name).toBe('Volt Phone');
+      expect(result).toMatchObject({
+        target: { id: empty.target.id, name: 'Helpdesk Pro' },
+        outcome: 'no_review_data',
+        reviewCount: 0,
+        context: { reviewsUsed: 0, truncated: false },
+      });
+      expect(JSON.stringify(result)).not.toContain(BATTERY);
+    });
   });
 });
