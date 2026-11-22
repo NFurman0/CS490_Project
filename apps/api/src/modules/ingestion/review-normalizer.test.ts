@@ -17,7 +17,11 @@ function rawReview(overrides: Partial<RawReview> = {}): RawReview {
   };
 }
 
-const noReviews = { ok: false, errorCode: 'SOURCE_NO_REVIEWS' };
+const noReviews = (skippedCount: number) => ({
+  ok: false,
+  errorCode: 'SOURCE_NO_REVIEWS',
+  skippedCount,
+});
 
 describe('normalizeReviews', () => {
   it('retains the exact text and rating of a valid review', () => {
@@ -34,31 +38,31 @@ describe('normalizeReviews', () => {
   });
 
   it('excludes null text', () => {
-    expect(normalizeReviews([rawReview({ text: null })])).toEqual(noReviews);
+    expect(normalizeReviews([rawReview({ text: null })])).toEqual(noReviews(1));
   });
 
   it.each(['', '  \n\t '])('excludes empty or whitespace-only text %j', (text) => {
-    expect(normalizeReviews([rawReview({ text })])).toEqual(noReviews);
+    expect(normalizeReviews([rawReview({ text })])).toEqual(noReviews(1));
   });
 
   it('excludes text made only of invisible format characters', () => {
-    expect(normalizeReviews([rawReview({ text: '\u200B' })])).toEqual(noReviews);
+    expect(normalizeReviews([rawReview({ text: '\u200B' })])).toEqual(noReviews(1));
   });
 
   it('excludes a missing rating rather than inventing one', () => {
-    expect(normalizeReviews([rawReview({ rating: null })])).toEqual(noReviews);
+    expect(normalizeReviews([rawReview({ rating: null })])).toEqual(noReviews(1));
   });
 
   it.each([NaN, Infinity, -Infinity])('excludes a non-finite rating %s', (rating) => {
-    expect(normalizeReviews([rawReview({ rating })])).toEqual(noReviews);
+    expect(normalizeReviews([rawReview({ rating })])).toEqual(noReviews(1));
   });
 
   it('excludes ratings below 1', () => {
-    expect(normalizeReviews([rawReview({ rating: 0.9 })])).toEqual(noReviews);
+    expect(normalizeReviews([rawReview({ rating: 0.9 })])).toEqual(noReviews(1));
   });
 
   it('excludes ratings above 5', () => {
-    expect(normalizeReviews([rawReview({ rating: 5.1 })])).toEqual(noReviews);
+    expect(normalizeReviews([rawReview({ rating: 5.1 })])).toEqual(noReviews(1));
   });
 
   // The endpoints prove the range is inclusive; 4.5 catches accidental rounding.
@@ -72,6 +76,7 @@ describe('normalizeReviews', () => {
   it('accepts valid reviews without optional source details', () => {
     expect(normalizeReviews([rawReview()])).toEqual({
       ok: true,
+      skippedCount: 0,
       reviews: [
         {
           sourceReviewId: null,
@@ -102,6 +107,7 @@ describe('normalizeReviews', () => {
       ]),
     ).toEqual({
       ok: true,
+      skippedCount: 0,
       reviews: [
         {
           sourceReviewId: 'source-123',
@@ -126,6 +132,7 @@ describe('normalizeReviews', () => {
       ]),
     ).toMatchObject({
       ok: true,
+      skippedCount: 0,
       reviews: [{ publishedAt: null, reviewUrl: null }],
     });
   });
@@ -140,6 +147,7 @@ describe('normalizeReviews', () => {
       ]),
     ).toMatchObject({
       ok: true,
+      skippedCount: 1,
       reviews: [
         { text: 'First', rating: 4.5 },
         { text: 'Third', rating: 1 },
@@ -148,9 +156,9 @@ describe('normalizeReviews', () => {
   });
 
   it('signals no usable reviews for an empty or all-invalid batch', () => {
-    expect(normalizeReviews([])).toEqual(noReviews);
+    expect(normalizeReviews([])).toEqual(noReviews(0));
     expect(normalizeReviews([rawReview({ text: null }), rawReview({ rating: null })])).toEqual(
-      noReviews,
+      noReviews(2),
     );
   });
 

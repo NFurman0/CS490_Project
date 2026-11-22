@@ -18,7 +18,8 @@ export interface NormalizedReview {
 // The `ok` discriminator forces callers to handle an all-invalid batch instead
 // of interpreting an empty list as a successful ingestion.
 export type NormalizeReviewsResult =
-  { ok: true; reviews: NormalizedReview[] } | { ok: false; errorCode: 'SOURCE_NO_REVIEWS' };
+  | { ok: true; reviews: NormalizedReview[]; skippedCount: number }
+  | { ok: false; errorCode: 'SOURCE_NO_REVIEWS'; skippedCount: number };
 
 /** Pure transformation: no database, provider call, or mutation of RawReview inputs. */
 export function normalizeReviews(rawReviews: readonly RawReview[]): NormalizeReviewsResult {
@@ -53,7 +54,10 @@ export function normalizeReviews(rawReviews: readonly RawReview[]): NormalizeRev
   }
 
   // A resolved place whose records are all unusable must be a failed run, not success.
-  return reviews.length > 0 ? { ok: true, reviews } : { ok: false, errorCode: 'SOURCE_NO_REVIEWS' };
+  const skippedCount = rawReviews.length - reviews.length;
+  return reviews.length > 0
+    ? { ok: true, reviews, skippedCount }
+    : { ok: false, errorCode: 'SOURCE_NO_REVIEWS', skippedCount };
 }
 
 function nonblank(value: string | null): string | null {

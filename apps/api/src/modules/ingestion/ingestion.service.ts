@@ -81,12 +81,23 @@ export function createIngestionService({
                 status: 'SUCCEEDED',
                 errorCode: result.stoppedEarly ?? null,
                 reviewCount: 0, // The transaction replaces this with the inserted row count.
+                skippedCount: normalized.skippedCount,
               }
-            : { status: 'FAILED', errorCode: normalized.errorCode, reviewCount: 0 };
+            : {
+                status: 'FAILED',
+                errorCode: normalized.errorCode,
+                reviewCount: 0,
+                skippedCount: normalized.skippedCount,
+              };
         } else {
           // A source/provider failure already has its own outcome code. There
           // are no raw reviews to normalize and the run counts zero reviews.
-          outcome = { status: 'FAILED', errorCode: result.errorCode, reviewCount: 0 };
+          outcome = {
+            status: 'FAILED',
+            errorCode: result.errorCode,
+            reviewCount: 0,
+            skippedCount: 0,
+          };
         }
       } catch (error) {
         // A bug or an error the adapter did not translate. Never leave the run
@@ -95,6 +106,7 @@ export function createIngestionService({
           status: 'FAILED',
           errorCode: 'PROVIDER_ERROR',
           reviewCount: 0,
+          skippedCount: 0,
         });
         throw error;
       }
@@ -110,6 +122,7 @@ export function createIngestionService({
             run.id,
             normalizedReviews.reviews,
             outcome.errorCode,
+            normalizedReviews.skippedCount,
           );
         } catch (error) {
           // This runs only for save failures, outside the provider try/catch:
@@ -119,6 +132,7 @@ export function createIngestionService({
               status: 'FAILED',
               errorCode: 'PERSISTENCE_ERROR',
               reviewCount: 0,
+              skippedCount: normalizedReviews.skippedCount,
             });
           } catch (finishError) {
             // If the DB itself is unavailable, even recording FAILED may fail.
@@ -141,6 +155,7 @@ export function createIngestionService({
           status: finished.status,
           errorCode: finished.errorCode,
           reviewCount: finished.reviewCount,
+          skippedCount: finished.skippedCount,
         },
         'ingestion run finished',
       );

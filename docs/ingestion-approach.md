@@ -56,6 +56,8 @@ Paging also stops if a page comes back empty, so a bad token can never loop and 
 
 The adapter **extracts but does not judge**. A record with missing text or rating is passed on with `null` in that field. The normalizer (S1-021) decides what happens to invalid records. One malformed record never causes the rest of the page to be dropped.
 
+The ingestion run stores both `reviewCount` (rows successfully inserted) and `skippedCount` (source records rejected by normalization). Missing text, invalid ratings, and malformed individual source records increase the skipped count; they are not saved as Reviews. The latest-run API returns these counts after a page refresh. A provider failure before any records are returned has a skipped count of zero.
+
 ## Outcomes
 
 Source and provider failures are returned as values, not thrown (Engineering Standards §6.4):

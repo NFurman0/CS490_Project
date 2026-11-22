@@ -99,13 +99,19 @@ describe.skipIf(!hasTestDatabase)('analysis target ingestion run routes', () => 
       status: 'succeeded',
       errorCode: null,
       reviewCount: 2,
+      skippedCount: 0,
       startedAt: expect.any(String),
       completedAt: expect.any(String),
     });
     const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
       where: { id: res.body.data.id },
     });
-    expect(saved).toMatchObject({ targetId: target.id, status: 'SUCCEEDED', reviewCount: 2 });
+    expect(saved).toMatchObject({
+      targetId: target.id,
+      status: 'SUCCEEDED',
+      reviewCount: 2,
+      skippedCount: 0,
+    });
   });
 
   it('counts only normalized reviews in the recorded run', async () => {
@@ -119,11 +125,20 @@ describe.skipIf(!hasTestDatabase)('analysis target ingestion run routes', () => 
 
     const res = await request(app).post(runsUrl(target.id)).expect(201);
 
-    expect(res.body.data).toMatchObject({ status: 'succeeded', errorCode: null, reviewCount: 1 });
+    expect(res.body.data).toMatchObject({
+      status: 'succeeded',
+      errorCode: null,
+      reviewCount: 1,
+      skippedCount: 1,
+    });
     const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
       where: { id: res.body.data.id },
     });
-    expect(saved).toMatchObject({ status: 'SUCCEEDED', reviewCount: 1 });
+    expect(saved).toMatchObject({ status: 'SUCCEEDED', reviewCount: 1, skippedCount: 1 });
+    const latest = await request(app)
+      .get(`${runsUrl(target.id)}/latest`)
+      .expect(200);
+    expect(latest.body.data).toMatchObject({ id: saved.id, reviewCount: 1, skippedCount: 1 });
   });
 
   it('records SOURCE_NO_REVIEWS when all fetched reviews fail normalization', async () => {
@@ -142,6 +157,7 @@ describe.skipIf(!hasTestDatabase)('analysis target ingestion run routes', () => 
       status: 'failed',
       errorCode: 'SOURCE_NO_REVIEWS',
       reviewCount: 0,
+      skippedCount: 2,
     });
     const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
       where: { id: res.body.data.id },
@@ -150,6 +166,7 @@ describe.skipIf(!hasTestDatabase)('analysis target ingestion run routes', () => 
       status: 'FAILED',
       errorCode: 'SOURCE_NO_REVIEWS',
       reviewCount: 0,
+      skippedCount: 2,
     });
   });
 
@@ -204,6 +221,7 @@ describe.skipIf(!hasTestDatabase)('analysis target ingestion run routes', () => 
       status: 'failed',
       errorCode: 'PROVIDER_QUOTA_EXHAUSTED',
       reviewCount: 0,
+      skippedCount: 0,
     });
     const saved = await testPrisma.ingestionRun.findUniqueOrThrow({
       where: { id: res.body.data.id },

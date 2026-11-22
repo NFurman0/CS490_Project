@@ -156,12 +156,16 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
     );
     const run = await request(app).post(postUrl(target.id)).expect(201);
     expect(run.body.data.reviewCount).toBe(2);
+    expect(run.body.data.skippedCount).toBe(2);
     expect(
-      (await testPrisma.ingestionRun.findFirstOrThrow({ where: { id: run.body.data.id } }))
-        .reviewCount,
-    ).toBe(2);
+      await testPrisma.ingestionRun.findFirstOrThrow({ where: { id: run.body.data.id } }),
+    ).toMatchObject({ reviewCount: 2, skippedCount: 2 });
     const rows = await testPrisma.review.findMany({ where: { targetId: target.id } });
     expect(rows.map((row) => row.text).sort()).toEqual(['Great food', 'Second']);
+    const summary = await request(app)
+      .get(`${getUrl(target.id)}/summary`)
+      .expect(200);
+    expect(summary.body.data).toMatchObject({ reviewCount: 2, averageRating: 4.5 });
     expect(rows.find((row) => row.text === 'Second')).toMatchObject({
       targetId: target.id,
       sourceReviewId: null,
@@ -248,10 +252,20 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
     const failed = await request(appFor('clerk_a', result).app)
       .post(postUrl(target.id))
       .expect(201);
-    expect(failed.body.data).toMatchObject({ status: 'failed', reviewCount: 0, errorCode: code });
+    expect(failed.body.data).toMatchObject({
+      status: 'failed',
+      reviewCount: 0,
+      skippedCount: code === 'SOURCE_NO_REVIEWS' ? 1 : 0,
+      errorCode: code,
+    });
     expect(
       await testPrisma.ingestionRun.findFirstOrThrow({ where: { id: failed.body.data.id } }),
-    ).toMatchObject({ status: 'FAILED', reviewCount: 0, errorCode: code });
+    ).toMatchObject({
+      status: 'FAILED',
+      reviewCount: 0,
+      skippedCount: code === 'SOURCE_NO_REVIEWS' ? 1 : 0,
+      errorCode: code,
+    });
     expect(await testPrisma.review.findMany()).toEqual(prior);
   });
 
@@ -276,8 +290,15 @@ describe.skipIf(!hasTestDatabase)('persisted owned reviews (PostgreSQL)', () => 
     // The transaction must undo both inserts before recording the real run as failed.
     const broken: typeof reviews = {
       ...reviews,
-      saveBatchAndFinishRun: (ownerId, targetId, _runId, batch, stoppedEarly) =>
-        reviews.saveBatchAndFinishRun(ownerId, targetId, randomUUID(), batch, stoppedEarly),
+      saveBatchAndFinishRun: (ownerId, targetId, _runId, batch, stoppedEarly, skippedCount) =>
+        reviews.saveBatchAndFinishRun(
+          ownerId,
+          targetId,
+          randomUUID(),
+          batch,
+          stoppedEarly,
+          skippedCount,
+        ),
     };
     const res = await request(
       appFor('clerk_a', success([review('one'), review('two')]), broken).app,

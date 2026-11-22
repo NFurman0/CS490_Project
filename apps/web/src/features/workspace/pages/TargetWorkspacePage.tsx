@@ -342,6 +342,13 @@ export function TargetWorkspacePage() {
                   {currentWorkspace.run?.status === 'succeeded' && (
                     <p>{currentWorkspace.run.reviewCount} reviews saved in this run.</p>
                   )}
+                  {currentWorkspace.run && currentWorkspace.run.skippedCount > 0 && (
+                    <p>
+                      {currentWorkspace.run.skippedCount} source records skipped because they could
+                      not be processed. They were not saved by this attempt and do not add to the
+                      review summary or Q&A dataset.
+                    </p>
+                  )}
                   {/* A later-page error warns about collection, but does not undo saved reviews. */}
                   {currentWorkspace.run?.status === 'succeeded' &&
                     currentWorkspace.run.errorCode && (

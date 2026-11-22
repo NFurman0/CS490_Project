@@ -10,6 +10,7 @@ export interface ReviewsRepository {
     runId: string,
     reviews: readonly NormalizedReview[],
     stoppedEarly: IngestionRun['errorCode'],
+    skippedCount: number,
   ): Promise<IngestionRun>;
 }
 
@@ -25,7 +26,7 @@ export function createReviewsRepository(prisma: PrismaClient): ReviewsRepository
       });
     },
 
-    saveBatchAndFinishRun(ownerId, targetId, runId, reviews, stoppedEarly) {
+    saveBatchAndFinishRun(ownerId, targetId, runId, reviews, stoppedEarly, skippedCount) {
       // Fetching pages happens before this short transaction; waiting on the
       // provider while holding a DB transaction would keep locks open too long.
       // Recheck the parent here in case ownership/deletion changed during fetch.
@@ -57,6 +58,7 @@ export function createReviewsRepository(prisma: PrismaClient): ReviewsRepository
             status: 'SUCCEEDED',
             errorCode: stoppedEarly,
             reviewCount: inserted.count,
+            skippedCount,
             completedAt: new Date(),
           },
         });

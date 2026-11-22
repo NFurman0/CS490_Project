@@ -26,6 +26,8 @@ export const ingestionRunSchema = z.object({
   status: z.enum(INGESTION_RUN_STATUSES),
   errorCode: z.enum(INGESTION_ERROR_CODES).nullable(),
   reviewCount: z.number().int().min(0),
+  /** Source records rejected during normalization in this run. */
+  skippedCount: z.number().int().min(0),
   startedAt: z.string(),
   completedAt: z.string().nullable(),
 });

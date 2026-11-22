@@ -30,6 +30,7 @@ function toResponse(run: IngestionRun): IngestionRunResponse {
     status: STATUS_IN_RESPONSE[run.status],
     errorCode: run.errorCode,
     reviewCount: run.reviewCount,
+    skippedCount: run.skippedCount,
     startedAt: run.startedAt.toISOString(),
     completedAt: run.completedAt ? run.completedAt.toISOString() : null,
   };
