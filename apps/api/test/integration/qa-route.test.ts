@@ -114,6 +114,47 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
     expect(evaluateScopeGuardResponse(parkingCase, data.answer).acceptable).toBe(true);
   });
 
+  it('returns a scope refusal through HTTP for an owned, persisted review dataset', async () => {
+    const fixture = loadScopeGuardEvaluationSet();
+    const weatherCase = fixture.cases.find((testCase) => testCase.id === 'general-knowledge-001');
+    if (!weatherCase) throw new Error('Missing weather evaluation case');
+    // Save the known synthetic dataset before asking: the test must exercise
+    // authenticated target ownership and the owner-scoped database read.
+    const seeded = await seedTargetWithReviews(
+      'clerk_a',
+      fixture.target.name,
+      fixture.reviews.map(({ text, rating }) => ({ text, rating })),
+    );
+    const { app, fake } = appAs('clerk_a');
+    const answer = `I can only analyze the supplied Google Maps reviews for ${fixture.target.name}, so I cannot provide weather forecasts.`;
+    fake.respondWith({ outcome: 'out_of_scope_refusal', answer });
+
+    const res = await request(app)
+      .post(qaUrl(seeded.target.id))
+      .send({ question: weatherCase.question })
+      .expect(200);
+    const data = qaAnswerResponseSchema.parse(res.body).data;
+    const modelRequest = fake.lastRequest();
+
+    // Database ordering is independent of fixture order; compare review text
+    // sets so this also detects omitted or unrelated reviews.
+    expect(modelRequest.target).toEqual({ name: fixture.target.name, platform: 'GOOGLE_MAPS' });
+    expect(modelRequest.question).toBe(weatherCase.question);
+    expect(modelRequest.systemPrompt).toContain('use "out_of_scope_refusal"');
+    expect(modelRequest.reviews.map((row) => row.text).sort()).toEqual(
+      fixture.reviews.map((row) => row.text).sort(),
+    );
+    expect(data).toMatchObject({
+      target: { id: seeded.target.id, name: fixture.target.name, platform: 'GOOGLE_MAPS' },
+      outcome: weatherCase.expectedOutcome,
+      answer,
+      reviewCount: fixture.reviews.length,
+      context: { reviewsUsed: fixture.reviews.length, truncated: false },
+    });
+    expect(evaluateScopeGuardResponse(weatherCase, data.answer).acceptable).toBe(true);
+    expect(data.answer).not.toMatch(/degrees fahrenheit|chance of rain|sunny with highs/i);
+  });
+
   it.each([
     'What complaints appear most frequently?',
     'What do customers like about this product?',

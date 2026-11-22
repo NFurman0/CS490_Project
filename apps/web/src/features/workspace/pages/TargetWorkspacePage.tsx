@@ -43,8 +43,8 @@ function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : FALLBACK_MESSAGE;
 }
 
-// S2-017: name the dataset the server says it answered from. An out-of-scope
-// refusal is not about any dataset, so it keeps its generic label.
+// S2-017: name the dataset the server says it answered from. A refusal gets
+// a plain-language heading; its answer text explains the active-review limit.
 function qaOutcomeLabel(outcome: QaAnswer['outcome'], targetName: string): string {
   switch (outcome) {
     case 'grounded_answer':
@@ -52,7 +52,7 @@ function qaOutcomeLabel(outcome: QaAnswer['outcome'], targetName: string): strin
     case 'insufficient_evidence':
       return `Not enough evidence in ${targetName}’s reviews`;
     case 'out_of_scope_refusal':
-      return 'Outside the review-analysis scope';
+      return 'Sorry, I can’t answer that';
     case 'no_review_data':
       return `No reviews available for ${targetName}`;
   }

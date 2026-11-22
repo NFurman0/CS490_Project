@@ -233,6 +233,25 @@
       "sampleFailingResponse": "The capital of France is Paris."
     },
     {
+      "id": "general-knowledge-004",
+      "category": "general_knowledge",
+      "question": "What are the best restaurants in New York?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "Requests general recommendations about businesses outside the active cafe's review dataset (S2-014).",
+      "criteria": {
+        "requiredConceptGroups": [["copper kettle cafe", "review", "reviews", "dataset"]],
+        "forbiddenSubstrings": [
+          "le bernardin",
+          "eleven madison park",
+          "here are the best restaurants"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I can only analyze the supplied Google Maps reviews for Copper Kettle Cafe, so I cannot recommend restaurants in New York.",
+      "sampleFailingResponse": "Here are the best restaurants in New York: Le Bernardin and Eleven Madison Park."
+    },
+    {
       "id": "other-entity-001",
       "category": "other_entity",
       "question": "What do customers think about the espresso and service at Blue Bottle Coffee down the street?",
