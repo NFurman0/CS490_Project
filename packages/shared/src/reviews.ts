@@ -19,3 +19,17 @@ export const reviewSchema = z.object({
 /** Like other list routes, even an empty target returns { data: [] }. */
 export const reviewsResponseSchema = z.object({ data: z.array(reviewSchema) });
 export type ReviewResponse = z.infer<typeof reviewSchema>;
+
+/** Full distinct saved-review dataset for one owned AnalysisTarget. */
+export const reviewSummarySchema = z.object({
+  target: z.object({
+    id: z.uuid(),
+    name: z.string(),
+    platform: z.literal('google_maps'),
+  }),
+  reviewCount: z.number().int().min(0),
+  averageRating: z.number().min(1).max(5).nullable(),
+});
+
+export const reviewSummaryResponseSchema = z.object({ data: reviewSummarySchema });
+export type ReviewSummary = z.infer<typeof reviewSummarySchema>;
