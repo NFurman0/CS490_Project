@@ -115,4 +115,79 @@ describe.skipIf(!hasTestDatabase)('Q&A model boundary with persisted reviews (da
     expect(second).not.toContain(BATTERY);
     expect(fake.lastRequest().systemPrompt).toContain('Helpdesk Pro');
   });
+
+  describe('no stale context between requests (S2-019)', () => {
+    it('keeps each target’s context separate when questions run at the same time', async () => {
+      const a1 = await seedTargetWithReviews('clerk_a', 'Volt Phone', [
+        { text: BATTERY, rating: 5 },
+      ]);
+      const a2 = await seedTargetWithReviews('clerk_a', 'Helpdesk Pro', [
+        { text: SERVICE, rating: 4 },
+      ]);
+
+      // Hold every model call until both have arrived, so the two requests are
+      // genuinely in flight together rather than running one after the other.
+      let releaseBoth!: () => void;
+      const bothArrived = new Promise<void>((resolve) => {
+        releaseBoth = resolve;
+      });
+      const fake = createFakeQaModel(async () => {
+        if (fake.requests.length === 2) releaseBoth();
+        await bothArrived;
+        return { outcome: 'grounded_answer', answer: 'Controlled test answer.' };
+      });
+      const { service } = serviceWith(fake);
+
+      const [forA, forB] = await Promise.all([
+        service.ask(a1.ownerId, a1.target.id, 'What stands out?'),
+        service.ask(a2.ownerId, a2.target.id, 'What stands out?'),
+      ]);
+
+      expect(fake.requests).toHaveLength(2);
+      const requestFor = (name: string) => {
+        const request = fake.requests.find((candidate) => candidate.target.name === name);
+        if (!request) throw new Error(`No model request for ${name}.`);
+        return request;
+      };
+      const requestA = requestFor('Volt Phone');
+      const requestB = requestFor('Helpdesk Pro');
+
+      expect(requestA.reviews.map((review) => review.id)).toEqual(a1.reviewIds);
+      expect(JSON.stringify(requestA)).not.toContain(SERVICE);
+      expect(requestA.systemPrompt).not.toContain('Helpdesk Pro');
+
+      expect(requestB.reviews.map((review) => review.id)).toEqual(a2.reviewIds);
+      expect(JSON.stringify(requestB)).not.toContain(BATTERY);
+      expect(requestB.systemPrompt).not.toContain('Volt Phone');
+
+      expect(forA.target.id).toBe(a1.target.id);
+      expect(forB.target.id).toBe(a2.target.id);
+    });
+
+    it('sends only the current question, with no earlier question or answer', async () => {
+      const a1 = await seedTargetWithReviews('clerk_a', 'Volt Phone', [
+        { text: BATTERY, rating: 5 },
+      ]);
+      const a2 = await seedTargetWithReviews('clerk_a', 'Helpdesk Pro', [
+        { text: SERVICE, rating: 4 },
+      ]);
+      const firstQuestion = 'Does the volt phone handle a long camping trip?';
+      const firstAnswer = 'Reviewers say the charge survives a whole camping weekend.';
+      const secondQuestion = 'How quickly does support respond?';
+      const fake = createFakeQaModel();
+      fake.respondWith({ outcome: 'grounded_answer', answer: firstAnswer });
+      const { service } = serviceWith(fake);
+
+      await service.ask(a1.ownerId, a1.target.id, firstQuestion);
+      fake.respondWith({ outcome: 'grounded_answer', answer: 'Support calls back quickly.' });
+      await service.ask(a2.ownerId, a2.target.id, secondQuestion);
+
+      const second = fake.lastRequest();
+      expect(second.question).toBe(secondQuestion);
+      const sent = JSON.stringify(second);
+      expect(sent).not.toContain(firstQuestion);
+      expect(sent).not.toContain(firstAnswer);
+      expect(sent).not.toContain(BATTERY);
+    });
+  });
 });
