@@ -74,13 +74,31 @@ describe.skipIf(!hasTestDatabase)('persisted review summary (PostgreSQL)', () =>
   it('matches the Q&A dataset after a review changes across ingestion runs', async () => {
     const { owner, target } = await createTarget('clerk_a', 'Cafe A');
     await testPrisma.review.create({
-      data: { targetId: target.id, sourceReviewId: 'one', text: 'Old opinion.', rating: 5 },
+      data: {
+        targetId: target.id,
+        sourceReviewId: 'one',
+        text: 'Old opinion.',
+        rating: 5,
+        createdAt: new Date('2026-11-20T12:00:00Z'),
+      },
     });
     await testPrisma.review.create({
-      data: { targetId: target.id, sourceReviewId: 'one', text: 'Updated opinion.', rating: 2 },
+      data: {
+        targetId: target.id,
+        sourceReviewId: 'one',
+        text: 'Updated opinion.',
+        rating: 2,
+        createdAt: new Date('2026-11-20T12:01:00Z'),
+      },
     });
     await testPrisma.review.create({
-      data: { targetId: target.id, sourceReviewId: 'two', text: 'Still good.', rating: 4 },
+      data: {
+        targetId: target.id,
+        sourceReviewId: 'two',
+        text: 'Still good.',
+        rating: 4,
+        createdAt: new Date('2026-11-20T12:02:00Z'),
+      },
     });
 
     const response = reviewSummaryResponseSchema.parse(
