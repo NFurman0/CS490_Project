@@ -177,6 +177,16 @@ body {
   text-decoration: underline;
 }
 
+/* The active target must be identifiable without relying on color alone. */
+.recent-target-list li:has(a[aria-current='page']) {
+  background: var(--color-surface);
+}
+
+.recent-target-list a[aria-current='page'] {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
 .sidebar-message {
   margin: 0;
   color: var(--color-muted);

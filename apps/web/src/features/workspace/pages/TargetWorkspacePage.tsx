@@ -8,6 +8,7 @@ import { FALLBACK_MESSAGE, ingestionMessageFor } from '../../../lib/errors';
 import { getLatestIngestionRun, startIngestionRun } from '../../ingestion/api';
 import { askQuestion, type QaAnswer } from '../../qa/api';
 import { getAnalysisTarget, type AnalysisTargetSummary } from '../../targets/api';
+import { ActiveTargetHeader } from '../../targets/components/ActiveTargetHeader';
 
 interface WorkspaceData {
   targetId: string;
@@ -32,20 +33,25 @@ interface QaPageError {
   message: string;
 }
 
+const QA_TARGET_MISMATCH_MESSAGE =
+  'ReviewLens couldn’t confirm this answer is for this target. Please try again.';
+
 function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : FALLBACK_MESSAGE;
 }
 
-function qaOutcomeLabel(outcome: QaAnswer['outcome']): string {
+// S2-017: name the dataset the server says it answered from. An out-of-scope
+// refusal is not about any dataset, so it keeps its generic label.
+function qaOutcomeLabel(outcome: QaAnswer['outcome'], targetName: string): string {
   switch (outcome) {
     case 'grounded_answer':
-      return 'Answer from your reviews';
+      return `Answer from ${targetName}’s reviews`;
     case 'insufficient_evidence':
-      return 'Not enough review evidence';
+      return `Not enough evidence in ${targetName}’s reviews`;
     case 'out_of_scope_refusal':
       return 'Outside the review-analysis scope';
     case 'no_review_data':
-      return 'No reviews available';
+      return `No reviews available for ${targetName}`;
   }
 }
 
@@ -215,7 +221,12 @@ export function TargetWorkspacePage() {
     setQaError(null);
     try {
       const answer = await askQuestion(client, requestedId, question);
-      if (isCurrent()) setQaAnswer({ visitId: qaVisitId, answer });
+      if (!isCurrent()) return;
+      if (answer.target.id !== requestedId) {
+        setQaError({ visitId: qaVisitId, message: QA_TARGET_MISMATCH_MESSAGE });
+        return;
+      }
+      setQaAnswer({ visitId: qaVisitId, answer });
     } catch (error) {
       if (isCurrent()) setQaError({ visitId: qaVisitId, message: errorMessage(error) });
     } finally {
@@ -238,10 +249,10 @@ export function TargetWorkspacePage() {
       )}
       {currentWorkspace && (
         <>
-          <header className="page-heading">
-            <p className="eyebrow">ANALYSIS TARGET WORKSPACE</p>
-            <h1>{currentWorkspace.target.name}</h1>
-          </header>
+          <ActiveTargetHeader
+            surface="Analysis target workspace"
+            target={currentWorkspace.target}
+          />
           <div className="workspace-grid">
             <section className="workspace-panel" aria-label="Target details">
               <h2>Target details</h2>
@@ -266,6 +277,9 @@ export function TargetWorkspacePage() {
             </section>
             <section className="workspace-panel" aria-label="Review ingestion">
               <h2>Review ingestion</h2>
+              <p className="workspace-panel-target">
+                Reviews for <strong>{currentWorkspace.target.name}</strong>
+              </p>
               {currentWorkspace.statusError ? (
                 <p className="form-error-summary" role="alert">
                   {currentWorkspace.statusError}
@@ -277,7 +291,7 @@ export function TargetWorkspacePage() {
                   </p>
                   {/* The count is inserted rows for this run, not raw source records or a lifetime total. */}
                   {currentWorkspace.run?.status === 'succeeded' && (
-                    <p>{currentWorkspace.run.reviewCount} reviews saved in this run.</p>
+                    <p>{`${currentWorkspace.run.reviewCount} reviews saved in this run.`}</p>
                   )}
                   {/* A later-page error warns about collection, but does not undo saved reviews. */}
                   {currentWorkspace.run?.status === 'succeeded' &&
@@ -359,7 +373,7 @@ export function TargetWorkspacePage() {
                   className="qa-response"
                   aria-live="polite"
                 >
-                  <h3>{qaOutcomeLabel(currentQaAnswer.outcome)}</h3>
+                  <h3>{qaOutcomeLabel(currentQaAnswer.outcome, currentQaAnswer.target.name)}</h3>
                   <p className="qa-answer">{currentQaAnswer.answer}</p>
                   {currentQaAnswer.context.truncated && (
                     <p className="field-hint">

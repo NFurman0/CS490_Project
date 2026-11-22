@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../lib/api-client';
@@ -263,6 +263,181 @@ describe('TargetWorkspacePage', () => {
     expect(screen.queryByText('Something went wrong on our side.')).not.toBeInTheDocument();
   });
 
+  describe('switching the active target (S2-017)', () => {
+    const secondTarget = {
+      ...target,
+      id: 'target-2',
+      name: 'Second target',
+      sourceUrl: 'https://maps.google.com/?cid=456',
+    };
+
+    it('labels the loaded target as the active target', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(succeededRun);
+
+      renderPage();
+
+      const heading = await screen.findByRole('heading', { level: 1, name: target.name });
+      const header = heading.closest('header');
+      expect(header).not.toBeNull();
+      expect(within(header!).getByText('Active target · Google Maps reviews')).toBeInTheDocument();
+    });
+
+    it('names the target in the ingestion panel above its saved count', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(succeededRun);
+
+      renderPage();
+
+      const ingestion = await screen.findByRole('region', { name: 'Review ingestion' });
+      expect(ingestion).toHaveTextContent(`Reviews for ${target.name}`);
+      expect(
+        await within(ingestion).findByText('12 reviews saved in this run.'),
+      ).toBeInTheDocument();
+    });
+
+    it('says whose dataset it is before the first ingestion', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+
+      renderPage();
+
+      const ingestion = await screen.findByRole('region', { name: 'Review ingestion' });
+      expect(ingestion).toHaveTextContent(`Reviews for ${target.name}`);
+      expect(await within(ingestion).findByText('No ingestion attempt yet')).toBeInTheDocument();
+    });
+
+    it('says whose dataset it is when the ingestion state cannot be loaded', async () => {
+      api.get.mockResolvedValueOnce(target).mockRejectedValueOnce(new ApiError(500, 'Try again.'));
+
+      renderPage();
+
+      const ingestion = await screen.findByRole('region', { name: 'Review ingestion' });
+      expect(ingestion).toHaveTextContent(`Reviews for ${target.name}`);
+      expect(within(ingestion).getByRole('alert')).toHaveTextContent(
+        'Could not load the current ingestion state. Try again.',
+      );
+    });
+
+    async function askAbout(question: string) {
+      fireEvent.change(await screen.findByRole('textbox', { name: 'Your question' }), {
+        target: { value: question },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+    }
+
+    it('labels a Q&A answer with the target it was answered from', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+      api.post.mockResolvedValueOnce({
+        target: { id: target.id, name: target.name, platform: 'google_maps' },
+        outcome: 'grounded_answer',
+        answer: 'Customers praise the espresso.',
+        reviewCount: 12,
+        context: { reviewsUsed: 12, truncated: false },
+      });
+
+      renderPage();
+      await askAbout('What do customers like?');
+
+      const response = await screen.findByRole('region', { name: 'ReviewLens response' });
+      expect(
+        within(response).getByRole('heading', { name: `Answer from ${target.name}’s reviews` }),
+      ).toBeInTheDocument();
+      expect(within(response).getByText('Customers praise the espresso.')).toBeInTheDocument();
+    });
+
+    it('does not show an answer that belongs to a different target', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+      api.post.mockResolvedValueOnce({
+        target: { id: 'someone-elses-target', name: 'Unrelated place', platform: 'google_maps' },
+        outcome: 'grounded_answer',
+        answer: 'Answer drawn from another dataset.',
+        reviewCount: 3,
+        context: { reviewsUsed: 3, truncated: false },
+      });
+
+      renderPage();
+      await askAbout('What do customers like?');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'ReviewLens couldn’t confirm this answer is for this target. Please try again.',
+      );
+      expect(screen.queryByRole('region', { name: 'ReviewLens response' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Answer drawn from another dataset.')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Unrelated place/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Ask question' })).toBeEnabled();
+    });
+
+    it('replaces every detail of the previous target after switching', async () => {
+      let finishSecondTarget!: (value: typeof secondTarget) => void;
+      api.get
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(succeededRun)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishSecondTarget = resolve;
+            }),
+        )
+        .mockResolvedValueOnce(null);
+
+      renderPage();
+      await screen.findByText('12 reviews saved in this run.');
+      fireEvent.click(screen.getByRole('link', { name: 'Other target' }));
+
+      // While Target B loads, nothing from Target A is presented as active.
+      expect(screen.getByText('Loading target workspace…')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: target.name })).not.toBeInTheDocument();
+      expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+
+      finishSecondTarget(secondTarget);
+
+      expect(await screen.findByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+      expect(await screen.findByText('No ingestion attempt yet')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: secondTarget.sourceUrl })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: target.sourceUrl })).not.toBeInTheDocument();
+      expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+
+      // Every surface names Target B, and none still names Target A.
+      const ingestion = screen.getByRole('region', { name: 'Review ingestion' });
+      const qa = screen.getByRole('region', { name: 'Review Q&A' });
+      expect(ingestion).toHaveTextContent('Reviews for Second target');
+      expect(within(ingestion).getByText('No ingestion attempt yet')).toBeInTheDocument();
+      expect(qa).toHaveTextContent('Ask a question about Second target');
+      for (const surface of [ingestion, qa]) {
+        expect(surface).not.toHaveTextContent(target.name);
+      }
+      expect(screen.queryByText(target.name)).not.toBeInTheDocument();
+      expect(api.get).toHaveBeenNthCalledWith(3, '/api/analysis-targets/target-2');
+      expect(api.get).toHaveBeenNthCalledWith(
+        4,
+        '/api/analysis-targets/target-2/ingestion-runs/latest',
+      );
+    });
+
+    it('ignores the previous target’s load when it finishes after the switch', async () => {
+      let finishFirstTarget!: (value: typeof target) => void;
+      api.get.mockImplementation((path: string) => {
+        if (path === '/api/analysis-targets/target-1') {
+          return new Promise((resolve) => {
+            finishFirstTarget = resolve;
+          });
+        }
+        if (path === '/api/analysis-targets/target-2') return Promise.resolve(secondTarget);
+        if (path.endsWith('/target-1/ingestion-runs/latest')) return Promise.resolve(succeededRun);
+        return Promise.resolve(null);
+      });
+
+      renderPage();
+      fireEvent.click(screen.getByRole('link', { name: 'Other target' }));
+      expect(await screen.findByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+
+      finishFirstTarget(target);
+
+      await waitFor(() => expect(api.get).toHaveBeenCalledTimes(4));
+      expect(screen.getByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: target.name })).not.toBeInTheDocument();
+      expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+    });
+  });
+
   it('shows a safe error when starting ingestion cannot reach the API', async () => {
     api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
     api.post.mockRejectedValueOnce(new ApiError(0, 'Can’t reach ReviewLens right now.'));
@@ -293,7 +468,7 @@ describe('TargetWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Answer from your reviews' }),
+      await screen.findByRole('heading', { name: 'Answer from My coffee shop’s reviews' }),
     ).toBeInTheDocument();
     expect(
       screen.getByText('Customers praise the espresso and friendly service.'),
@@ -359,7 +534,9 @@ describe('TargetWorkspacePage', () => {
       context: { reviewsUsed: 12, truncated: false },
     });
     expect(
-      await screen.findByRole('heading', { name: 'Not enough review evidence' }),
+      await screen.findByRole('heading', {
+        name: 'Not enough evidence in My coffee shop’s reviews',
+      }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
@@ -382,7 +559,7 @@ describe('TargetWorkspacePage', () => {
 
   it.each([
     ['out_of_scope_refusal', 'Outside the review-analysis scope'],
-    ['no_review_data', 'No reviews available'],
+    ['no_review_data', 'No reviews available for My coffee shop'],
   ] as const)('labels a %s response', async (outcome, label) => {
     api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
     api.post.mockResolvedValueOnce({

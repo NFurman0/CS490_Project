@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { NavLink } from 'react-router';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { ApiError } from '../../../lib/api-client';
 import { useApi } from '../../../lib/api-context';
@@ -58,7 +58,9 @@ export function RecentTargets() {
         <ul className="recent-target-list">
           {targets.map((target) => (
             <li key={target.id}>
-              <Link to={`/analysis-targets/${target.id}`}>{target.name}</Link>
+              {/* NavLink sets aria-current="page" on the active target (S2-017). No `end`,
+                  so later per-target pages (summary, Q&A) keep the same entry marked. */}
+              <NavLink to={`/analysis-targets/${target.id}`}>{target.name}</NavLink>
             </li>
           ))}
         </ul>
