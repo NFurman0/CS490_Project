@@ -722,4 +722,75 @@ describe('TargetWorkspacePage', () => {
     expect(screen.queryByText('First target private response.')).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+
+  describe('no stale Q&A state after switching targets (S2-019)', () => {
+    const secondTarget = { ...target, id: 'target-2', name: 'Second target' };
+
+    function mockBothTargets() {
+      api.get
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(secondTarget)
+        .mockResolvedValueOnce(null);
+    }
+
+    async function switchToSecondTarget() {
+      fireEvent.click(screen.getByRole('link', { name: 'Other target' }));
+      expect(await screen.findByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+      return screen.getByRole('region', { name: 'Review Q&A' });
+    }
+
+    it('starts the new target with an empty question, not the unsent draft', async () => {
+      mockBothTargets();
+      renderPage();
+      const draft = 'Do customers mention the espresso at My coffee shop?';
+      fireEvent.change(await screen.findByRole('textbox', { name: 'Your question' }), {
+        target: { value: draft },
+      });
+
+      const qa = await switchToSecondTarget();
+
+      expect(within(qa).getByRole('textbox', { name: 'Your question' })).toHaveValue('');
+      expect(screen.queryByDisplayValue(draft)).not.toBeInTheDocument();
+      expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('clears the previous target’s Q&A and validation errors', async () => {
+      mockBothTargets();
+      api.post
+        .mockRejectedValueOnce(new ApiError(503, 'ReviewLens could not answer right now.'))
+        .mockResolvedValueOnce({
+          target: { id: secondTarget.id, name: secondTarget.name, platform: 'google_maps' },
+          outcome: 'grounded_answer',
+          answer: 'Second target answer.',
+          reviewCount: 3,
+          context: { reviewsUsed: 3, truncated: false },
+        });
+      renderPage();
+      const question = await screen.findByRole('textbox', { name: 'Your question' });
+      fireEvent.change(question, { target: { value: 'What is most popular?' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+      expect(await screen.findByText('ReviewLens could not answer right now.')).toBeInTheDocument();
+      // Leave the field blank so Target A also shows its required-field error.
+      fireEvent.change(question, { target: { value: '' } });
+      expect(screen.getByText('Enter a question about this target’s reviews.')).toBeInTheDocument();
+
+      const qa = await switchToSecondTarget();
+
+      expect(screen.queryByText('ReviewLens could not answer right now.')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('Enter a question about this target’s reviews.'),
+      ).not.toBeInTheDocument();
+
+      // Target B still works normally after the switch.
+      fireEvent.change(within(qa).getByRole('textbox', { name: 'Your question' }), {
+        target: { value: 'What is most popular?' },
+      });
+      fireEvent.click(within(qa).getByRole('button', { name: 'Ask question' }));
+      expect(await within(qa).findByText('Second target answer.')).toBeInTheDocument();
+      expect(api.post).toHaveBeenLastCalledWith('/api/analysis-targets/target-2/qa', {
+        question: 'What is most popular?',
+      });
+    });
+  });
 });
