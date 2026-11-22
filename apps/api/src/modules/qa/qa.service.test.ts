@@ -144,6 +144,80 @@ describe('Q&A orchestration (deterministic harness)', () => {
     expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(true);
   });
 
+  // These responses are controlled: the boundary assertions establish which
+  // instructions and owned reviews Gemini receives, not Gemini's judgment.
+  it.each(evaluationSet.cases.filter((testCase) => testCase.category === 'general_knowledge'))(
+    'passes the active review scope to the model and returns a refusal for $id',
+    async (testCase) => {
+      const { fake, service, findByTarget } = setup(evaluationReviews);
+      const answer = `I can only analyze the supplied Google Maps reviews for ${target.name}, so I cannot fulfill this unrelated request.`;
+      fake.respondWith({ outcome: 'out_of_scope_refusal', answer });
+
+      const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+      const modelRequest = fake.lastRequest();
+
+      expect(findByTarget).toHaveBeenCalledWith(OWNER, TARGET_ID);
+      expect(modelRequest.systemPrompt).toBe(buildSystemPrompt(modelRequest.target));
+      expect(modelRequest.systemPrompt).toContain("First decide whether the user's request");
+      expect(modelRequest.systemPrompt).toContain('Do not answer any factual subpart');
+      expect(modelRequest.systemPrompt).toContain('use "out_of_scope_refusal"');
+      expect(modelRequest.target).toEqual({
+        name: evaluationSet.target.name,
+        platform: 'GOOGLE_MAPS',
+      });
+      expect(modelRequest.question).toBe(testCase.question);
+      expect(modelRequest.reviews.map((row) => row.text)).toEqual(
+        evaluationSet.reviews.map((row) => row.text),
+      );
+      expect(modelRequest.availableReviewCount).toBe(evaluationSet.reviews.length);
+      expect(result).toMatchObject({
+        target: { id: TARGET_ID, name: target.name, platform: 'GOOGLE_MAPS' },
+        outcome: testCase.expectedOutcome,
+        answer,
+        reviewCount: evaluationSet.reviews.length,
+        context: { reviewsUsed: evaluationSet.reviews.length, truncated: false },
+      });
+      // The evaluator examines returned text; the outcome is checked separately.
+      expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(true);
+      expect(evaluateScopeGuardResponse(testCase, testCase.sampleFailingResponse).acceptable).toBe(
+        false,
+      );
+    },
+  );
+
+  it('keeps an active restaurant review question in scope despite restaurant wording', async () => {
+    const { fake, service } = setup(evaluationReviews);
+    fake.respondWith({
+      outcome: 'grounded_answer',
+      answer: 'Reviewers praise the coffee and croissants at Copper Kettle Cafe.',
+    });
+
+    const result = await service.ask(
+      OWNER,
+      TARGET_ID,
+      'What do reviewers like about this restaurant?',
+    );
+
+    // The same restaurant word in a recommendation request must not become a
+    // keyword-based refusal for a question about this target's own reviews.
+    expect(fake.lastRequest().systemPrompt).toContain("Judge the request's meaning");
+    expect(result.outcome).toBe('grounded_answer');
+    expect(result.answer).toContain('coffee and croissants');
+  });
+
+  it('shows that a valid-shaped trivia answer still requires real-model validation', async () => {
+    const testCase = evaluationCase('general-knowledge-003');
+    const { fake, service } = setup(evaluationReviews);
+    fake.respondWith({ outcome: 'grounded_answer', answer: testCase.sampleFailingResponse });
+
+    const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+
+    // The service checks response shape, not semantic scope. This negative
+    // control must fail the evaluator despite passing through the service.
+    expect(result.outcome).toBe('grounded_answer');
+    expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(false);
+  });
+
   it('flags a fabricated parking-safety answer even when its model response has a valid shape', async () => {
     const testCase = evaluationCase('insufficient-evidence-001');
     const { fake, service } = setup(evaluationReviews);

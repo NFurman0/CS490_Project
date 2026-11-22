@@ -655,7 +655,7 @@ describe('TargetWorkspacePage', () => {
   });
 
   it.each([
-    ['out_of_scope_refusal', 'Outside the review-analysis scope'],
+    ['out_of_scope_refusal', 'Sorry, I can’t answer that'],
     ['no_review_data', 'No reviews available for My coffee shop'],
   ] as const)('labels a %s response', async (outcome, label) => {
     api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
@@ -677,6 +677,10 @@ describe('TargetWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
 
     expect(await screen.findByRole('heading', { name: label })).toBeInTheDocument();
+    // Keep the model's scope explanation visible below the friendlier heading.
+    if (outcome === 'out_of_scope_refusal') {
+      expect(screen.getByText('I can only answer questions based on reviews.')).toBeInTheDocument();
+    }
   });
 
   it('does not show an earlier target response after switching analysis targets', async () => {
