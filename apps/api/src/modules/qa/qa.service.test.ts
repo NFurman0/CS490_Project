@@ -1,6 +1,10 @@
 import type { AnalysisTarget, Review } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import { createFakeQaModel } from '../../../test/helpers/fake-qa-model.js';
+import {
+  evaluateScopeGuardResponse,
+  loadScopeGuardEvaluationSet,
+} from '../../../test/helpers/scope-guard-evaluator.js';
 import { AppError } from '../../lib/errors.js';
 import type { Logger } from '../../lib/logger.js';
 import { QA_OUTCOMES } from './qa-model.js';
@@ -39,6 +43,17 @@ const storedReviews = [
   review('r2', 'Wi-Fi drops often.', 2),
 ];
 
+// Use the same known-absence dataset for both unsupported and supported questions.
+// The fake model controls the response; these tests establish what the service sends
+// and returns, not whether Gemini itself would make the right judgment.
+const evaluationSet = loadScopeGuardEvaluationSet();
+const evaluationReviews = evaluationSet.reviews.map((row) => review(row.id, row.text, row.rating));
+const evaluationCase = (id: string) => {
+  const testCase = evaluationSet.cases.find((candidate) => candidate.id === id);
+  if (!testCase) throw new Error(`Missing scope-guard case: ${id}`);
+  return testCase;
+};
+
 function setup(reviewRows: Review[] = storedReviews, contextTokenBudget?: number) {
   const fake = createFakeQaModel();
   const findById = vi.fn(async (ownerId: string, id: string) =>
@@ -67,6 +82,87 @@ async function captureAppError(promise: Promise<unknown>): Promise<AppError> {
 }
 
 describe('Q&A orchestration (deterministic harness)', () => {
+  it.each([
+    [
+      'insufficient-evidence-001',
+      'The supplied reviews do not mention parking-lot safety at night, so I cannot determine whether it is safe.',
+    ],
+    [
+      'insufficient-evidence-002',
+      'The supplied reviews mention croissants but do not state whether any pastries are vegan or gluten-free.',
+    ],
+    [
+      'insufficient-evidence-003',
+      'The supplied reviews mention patio tables but do not state whether dogs are allowed inside or on the patio.',
+    ],
+  ])('explains missing evidence from the active reviews for %s', async (caseId, answer) => {
+    const testCase = evaluationCase(caseId);
+    const { fake, service, findByTarget } = setup(evaluationReviews);
+    fake.respondWith({ outcome: 'insufficient_evidence', answer });
+
+    const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+    const request = fake.lastRequest();
+
+    // Inspect the actual model boundary so a passing response alone cannot mask
+    // a missing review, wrong target, or missing prompt instruction.
+    expect(findByTarget).toHaveBeenCalledWith(OWNER, TARGET_ID);
+    expect(request.question).toBe(testCase.question);
+    expect(request.target).toEqual({ name: evaluationSet.target.name, platform: 'GOOGLE_MAPS' });
+    expect(request.reviews.map((row) => row.text)).toEqual(
+      evaluationSet.reviews.map((row) => row.text),
+    );
+    expect(request.availableReviewCount).toBe(evaluationSet.reviews.length);
+    expect(request.systemPrompt).toContain('support the specific claim');
+    expect(request.systemPrompt).toContain('Mentions of related topics do not establish');
+    expect(request.systemPrompt).toContain('use "insufficient_evidence"');
+    expect(result).toMatchObject({
+      outcome: testCase.expectedOutcome,
+      answer,
+      reviewCount: evaluationSet.reviews.length,
+      context: { reviewsUsed: evaluationSet.reviews.length, truncated: false },
+    });
+    // The evaluator checks the returned answer text; outcome is asserted above.
+    expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(true);
+  });
+
+  it('still answers a supported studying question from the same review set', async () => {
+    const testCase = evaluationCase('in-scope-003');
+    const { fake, service } = setup(evaluationReviews);
+    fake.respondWith({
+      outcome: 'grounded_answer',
+      answer:
+        'A reviewer describes quiet weekday seating, reliable Wi-Fi, and window outlets for studying.',
+    });
+
+    const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+
+    expect(fake.lastRequest().reviews.map((row) => row.text)).toEqual(
+      evaluationSet.reviews.map((row) => row.text),
+    );
+    expect(fake.lastRequest().systemPrompt).toContain('use "grounded_answer"');
+    expect(result.outcome).toBe(testCase.expectedOutcome);
+    expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(true);
+  });
+
+  it('flags a fabricated parking-safety answer even when its model response has a valid shape', async () => {
+    const testCase = evaluationCase('insufficient-evidence-001');
+    const { fake, service } = setup(evaluationReviews);
+    fake.respondWith({
+      outcome: 'grounded_answer',
+      answer: 'Customers say the parking lot is well-lit and has security guards at night.',
+    });
+
+    const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+
+    // Shape validation alone cannot detect an unsupported claim. This negative
+    // evaluator assertion makes that limitation visible without adding a new
+    // per-question runtime judge to the service.
+    expect(result.outcome).toBe('grounded_answer');
+    const evaluation = evaluateScopeGuardResponse(testCase, result.answer);
+    expect(evaluation.acceptable).toBe(false);
+    expect(evaluation.reasons).toContain('Contains forbidden or hallucinated content: "well-lit".');
+  });
+
   it('sends the system prompt built for the active target', async () => {
     const { fake, service } = setup();
 

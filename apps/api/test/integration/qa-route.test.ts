@@ -9,6 +9,10 @@ import { createTargetsRepository } from '../../src/modules/targets/targets.repos
 import { createUsersRepository } from '../../src/modules/users/users.repository.js';
 import { createFakeQaModel } from '../helpers/fake-qa-model.js';
 import { seedTargetWithReviews } from '../helpers/qa-fixtures.js';
+import {
+  evaluateScopeGuardResponse,
+  loadScopeGuardEvaluationSet,
+} from '../helpers/scope-guard-evaluator.js';
 import { createTestApp } from '../helpers/test-app.js';
 import { hasTestDatabase, resetDatabase, testPrisma } from '../helpers/test-database.js';
 
@@ -64,6 +68,50 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
     });
     expect(fake.lastRequest().question).toBe('What do customers like?');
     expect(fake.suppliedReviewIds().sort()).toEqual([...seeded.reviewIds].sort());
+  });
+
+  it('returns insufficient evidence for an owned, persisted dataset missing parking safety', async () => {
+    const fixture = loadScopeGuardEvaluationSet();
+    const parkingCase = fixture.cases.find(
+      (testCase) => testCase.id === 'insufficient-evidence-001',
+    );
+    if (!parkingCase) throw new Error('Missing parking-safety evaluation case');
+    // Persist the controlled reviews through the normal test helper, rather
+    // than handing fixture text directly to the fake model or HTTP response.
+    const seeded = await seedTargetWithReviews(
+      'clerk_a',
+      fixture.target.name,
+      fixture.reviews.map(({ text, rating }) => ({ text, rating })),
+    );
+    const { app, fake } = appAs('clerk_a');
+    const answer =
+      'The supplied reviews do not mention parking safety at night, so I cannot determine whether the lot is safe.';
+    fake.respondWith({ outcome: 'insufficient_evidence', answer });
+
+    const res = await request(app)
+      .post(qaUrl(seeded.target.id))
+      .send({ question: parkingCase.question })
+      .expect(200);
+    const data = qaAnswerResponseSchema.parse(res.body).data;
+
+    // HTTP and shared-contract checks prove the owned database path delivers
+    // the active reviews and the visible limitation to the caller.
+    expect(fake.lastRequest().question).toBe(parkingCase.question);
+    // Persisted rows are ordered by timestamp/ID, not by fixture array position.
+    expect(
+      fake
+        .lastRequest()
+        .reviews.map((row) => row.text)
+        .sort(),
+    ).toEqual(fixture.reviews.map((row) => row.text).sort());
+    expect(data).toMatchObject({
+      target: { id: seeded.target.id, name: fixture.target.name, platform: 'GOOGLE_MAPS' },
+      outcome: parkingCase.expectedOutcome,
+      answer,
+      reviewCount: fixture.reviews.length,
+      context: { reviewsUsed: fixture.reviews.length, truncated: false },
+    });
+    expect(evaluateScopeGuardResponse(parkingCase, data.answer).acceptable).toBe(true);
   });
 
   it.each([

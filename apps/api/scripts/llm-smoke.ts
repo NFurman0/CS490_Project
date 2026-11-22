@@ -1,7 +1,7 @@
 /**
  * Manual check that GEMINI_API_KEY and LLM_MODEL work. Sends one small,
  * made-up review set through the real Gemini adapter and prints the result.
- * Costs one free-tier request. Never run in CI.
+ * Costs three free-tier requests. Never run in CI.
  * npm run llm:smoke -w apps/api
  */
 import { existsSync } from 'node:fs';
@@ -45,7 +45,13 @@ const reviews = [
   },
 ];
 
-for (const question of ['What do customers like?', 'What is the capital of France?']) {
+// Compare an evidenced question with a relevant fact these synthetic reviews
+// never establish. This is a live adapter check, not an automated model test.
+for (const question of [
+  'What do customers like?',
+  'Do customers think the parking lot is safe at night?',
+  'What is the capital of France?',
+]) {
   const started = Date.now();
   const answer = await model.complete({
     systemPrompt: buildSystemPrompt(target),
