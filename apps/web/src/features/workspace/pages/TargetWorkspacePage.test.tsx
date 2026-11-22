@@ -316,6 +316,55 @@ describe('TargetWorkspacePage', () => {
       );
     });
 
+    async function askAbout(question: string) {
+      fireEvent.change(await screen.findByRole('textbox', { name: 'Your question' }), {
+        target: { value: question },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+    }
+
+    it('labels a Q&A answer with the target it was answered from', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+      api.post.mockResolvedValueOnce({
+        target: { id: target.id, name: target.name, platform: 'google_maps' },
+        outcome: 'grounded_answer',
+        answer: 'Customers praise the espresso.',
+        reviewCount: 12,
+        context: { reviewsUsed: 12, truncated: false },
+      });
+
+      renderPage();
+      await askAbout('What do customers like?');
+
+      const response = await screen.findByRole('region', { name: 'ReviewLens response' });
+      expect(
+        within(response).getByRole('heading', { name: `Answer from ${target.name}’s reviews` }),
+      ).toBeInTheDocument();
+      expect(within(response).getByText('Customers praise the espresso.')).toBeInTheDocument();
+    });
+
+    it('does not show an answer that belongs to a different target', async () => {
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+      api.post.mockResolvedValueOnce({
+        target: { id: 'someone-elses-target', name: 'Unrelated place', platform: 'google_maps' },
+        outcome: 'grounded_answer',
+        answer: 'Answer drawn from another dataset.',
+        reviewCount: 3,
+        context: { reviewsUsed: 3, truncated: false },
+      });
+
+      renderPage();
+      await askAbout('What do customers like?');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'ReviewLens couldn’t confirm this answer is for this target. Please try again.',
+      );
+      expect(screen.queryByRole('region', { name: 'ReviewLens response' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Answer drawn from another dataset.')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Unrelated place/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Ask question' })).toBeEnabled();
+    });
+
     it('replaces every detail of the previous target after switching', async () => {
       let finishSecondTarget!: (value: typeof secondTarget) => void;
       api.get
@@ -419,7 +468,7 @@ describe('TargetWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Answer from your reviews' }),
+      await screen.findByRole('heading', { name: 'Answer from My coffee shop’s reviews' }),
     ).toBeInTheDocument();
     expect(
       screen.getByText('Customers praise the espresso and friendly service.'),
@@ -485,7 +534,9 @@ describe('TargetWorkspacePage', () => {
       context: { reviewsUsed: 12, truncated: false },
     });
     expect(
-      await screen.findByRole('heading', { name: 'Not enough review evidence' }),
+      await screen.findByRole('heading', {
+        name: 'Not enough evidence in My coffee shop’s reviews',
+      }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
@@ -508,7 +559,7 @@ describe('TargetWorkspacePage', () => {
 
   it.each([
     ['out_of_scope_refusal', 'Outside the review-analysis scope'],
-    ['no_review_data', 'No reviews available'],
+    ['no_review_data', 'No reviews available for My coffee shop'],
   ] as const)('labels a %s response', async (outcome, label) => {
     api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
     api.post.mockResolvedValueOnce({

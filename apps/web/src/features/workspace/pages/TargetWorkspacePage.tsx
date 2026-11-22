@@ -33,20 +33,25 @@ interface QaPageError {
   message: string;
 }
 
+const QA_TARGET_MISMATCH_MESSAGE =
+  'ReviewLens couldn’t confirm this answer is for this target. Please try again.';
+
 function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : FALLBACK_MESSAGE;
 }
 
-function qaOutcomeLabel(outcome: QaAnswer['outcome']): string {
+// S2-017: name the dataset the server says it answered from. An out-of-scope
+// refusal is not about any dataset, so it keeps its generic label.
+function qaOutcomeLabel(outcome: QaAnswer['outcome'], targetName: string): string {
   switch (outcome) {
     case 'grounded_answer':
-      return 'Answer from your reviews';
+      return `Answer from ${targetName}’s reviews`;
     case 'insufficient_evidence':
-      return 'Not enough review evidence';
+      return `Not enough evidence in ${targetName}’s reviews`;
     case 'out_of_scope_refusal':
       return 'Outside the review-analysis scope';
     case 'no_review_data':
-      return 'No reviews available';
+      return `No reviews available for ${targetName}`;
   }
 }
 
@@ -216,7 +221,12 @@ export function TargetWorkspacePage() {
     setQaError(null);
     try {
       const answer = await askQuestion(client, requestedId, question);
-      if (isCurrent()) setQaAnswer({ visitId: qaVisitId, answer });
+      if (!isCurrent()) return;
+      if (answer.target.id !== requestedId) {
+        setQaError({ visitId: qaVisitId, message: QA_TARGET_MISMATCH_MESSAGE });
+        return;
+      }
+      setQaAnswer({ visitId: qaVisitId, answer });
     } catch (error) {
       if (isCurrent()) setQaError({ visitId: qaVisitId, message: errorMessage(error) });
     } finally {
@@ -363,7 +373,7 @@ export function TargetWorkspacePage() {
                   className="qa-response"
                   aria-live="polite"
                 >
-                  <h3>{qaOutcomeLabel(currentQaAnswer.outcome)}</h3>
+                  <h3>{qaOutcomeLabel(currentQaAnswer.outcome, currentQaAnswer.target.name)}</h3>
                   <p className="qa-answer">{currentQaAnswer.answer}</p>
                   {currentQaAnswer.context.truncated && (
                     <p className="field-hint">
