@@ -835,10 +835,9 @@ describe.skipIf(!hasTestDatabase)(
 
       // User B querying their own target never receives User A's persisted review.
       await appB.qaService.ask(ownerB.id, targetB, `Does this mention ${SECRET_REVIEW}?`);
-      expect(appB.fakeModel.everythingSent()).not.toContain(SECRET_REVIEW);
-      expect(appB.fakeModel.lastRequest().reviews.map((r) => r.text)).toEqual([
-        'Clean waiting room.',
-      ]);
+      const { systemPrompt, reviews } = appB.fakeModel.lastRequest();
+      expect(systemPrompt).not.toContain(SECRET_REVIEW);
+      expect(reviews.map((review) => review.text)).toEqual(['Clean waiting room.']);
     });
 
     it('switches active targets in PostgreSQL without retaining stale review context or summary data', async () => {
