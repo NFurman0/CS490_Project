@@ -155,6 +155,59 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
     expect(data.answer).not.toMatch(/degrees fahrenheit|chance of rain|sunny with highs/i);
   });
 
+  it('refuses an external platform question using only the owner’s persisted reviews', async () => {
+    // Unlike the service-only tests, these reviews are written to the isolated
+    // test database and loaded by the real owner-scoped repository through an
+    // authenticated HTTP request. The model response is still controlled.
+    const fixture = loadScopeGuardEvaluationSet();
+    const platformCase = fixture.cases.find((testCase) => testCase.id === 'other-platform-001');
+    if (!platformCase) throw new Error('Missing Yelp evaluation case');
+    const otherUserReview = 'Private other-user review: the secret blue lantern dessert.';
+    // Give a second user a distinctive review so an accidental cross-user
+    // query is detectable in both the model request and the HTTP response.
+    await seedTargetWithReviews('clerk_b', 'Other User Cafe', [
+      { text: otherUserReview, rating: 5 },
+    ]);
+    const seeded = await seedTargetWithReviews(
+      'clerk_a',
+      fixture.target.name,
+      fixture.reviews.map(({ text, rating }) => ({ text, rating })),
+    );
+    const { app, fake } = appAs('clerk_a');
+    fake.respondWith({
+      outcome: 'out_of_scope_refusal',
+      answer: platformCase.samplePassingResponse,
+    });
+
+    const res = await request(app)
+      .post(qaUrl(seeded.target.id))
+      .send({ question: platformCase.question })
+      .expect(200);
+    const data = qaAnswerResponseSchema.parse(res.body).data;
+    const modelRequest = fake.lastRequest();
+
+    // The shared schema verifies the public envelope; these checks separately
+    // verify the active target, actual persisted evidence, refusal classification,
+    // and absence of the other user's review at the model boundary.
+    expect(modelRequest.target).toEqual({ name: fixture.target.name, platform: 'GOOGLE_MAPS' });
+    expect(modelRequest.question).toBe(platformCase.question);
+    expect(modelRequest.systemPrompt).toContain('reviews or ratings from platforms other than');
+    expect(modelRequest.reviews.map((row) => row.text).sort()).toEqual(
+      fixture.reviews.map((row) => row.text).sort(),
+    );
+    expect(modelRequest.availableReviewCount).toBe(fixture.reviews.length);
+    expect(fake.everythingSent()).not.toContain(otherUserReview);
+    expect(data).toMatchObject({
+      target: { id: seeded.target.id, name: fixture.target.name, platform: 'GOOGLE_MAPS' },
+      outcome: platformCase.expectedOutcome,
+      answer: platformCase.samplePassingResponse,
+      reviewCount: fixture.reviews.length,
+      context: { reviewsUsed: fixture.reviews.length, truncated: false },
+    });
+    expect(evaluateScopeGuardResponse(platformCase, data.answer).acceptable).toBe(true);
+    expect(JSON.stringify(res.body)).not.toContain(otherUserReview);
+  });
+
   it.each([
     'What complaints appear most frequently?',
     'What do customers like about this product?',
@@ -197,6 +250,7 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
       .expect(401);
 
     expect(res.body).not.toHaveProperty('data');
+    expect(res.body.error.code).toBe('UNAUTHENTICATED');
     expect(fake.requests).toHaveLength(0);
   });
 
