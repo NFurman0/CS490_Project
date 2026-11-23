@@ -30,6 +30,12 @@ const succeededRun = {
   completedAt: '2026-01-02T00:01:00.000Z',
 };
 
+const emptySummary = {
+  target: { id: target.id, name: target.name, platform: 'google_maps' },
+  reviewCount: 0,
+  averageRating: null,
+};
+
 function renderPage(targetId = target.id) {
   return render(
     <MemoryRouter initialEntries={[`/analysis-targets/${targetId}`]}>
@@ -60,58 +66,110 @@ describe('TargetWorkspacePage', () => {
     });
   });
 
-  it('shows the exact saved count and rating independently of the latest run', async () => {
-    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce({
-      ...succeededRun,
-      status: 'failed',
-      reviewCount: 0,
-      errorCode: 'PROVIDER_ERROR',
-    });
+  it.each([
+    ['failed', { ...succeededRun, status: 'failed', reviewCount: 0, errorCode: 'PROVIDER_ERROR' }],
+    ['succeeded with zero new reviews', { ...succeededRun, reviewCount: 0 }],
+  ])('uses the saved count rather than a latest run that %s', async (_label, run) => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(run);
     renderPage();
 
     const summary = await screen.findByRole('region', { name: 'Saved review summary' });
     expect(summary).toHaveTextContent('Reviews in active dataset12');
     expect(summary).toHaveTextContent('Average rating4.3 out of 5');
     expect(reviewSummary.get).toHaveBeenCalledWith(api, target.id);
-    expect(screen.getByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText(run.status === 'failed' ? 'Failed' : 'Succeeded')).toBeInTheDocument();
+    const question = screen.getByRole('textbox', { name: 'Your question' });
+    expect(question).toBeEnabled();
+    fireEvent.change(question, { target: { value: 'What do customers like?' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/api/analysis-targets/target-1/qa', {
+        question: 'What do customers like?',
+      }),
+    );
   });
 
   it('shows zero and no rating for an empty saved dataset', async () => {
-    reviewSummary.get.mockResolvedValueOnce({
-      target: { id: target.id, name: target.name, platform: 'google_maps' },
-      reviewCount: 0,
-      averageRating: null,
-    });
+    reviewSummary.get.mockResolvedValueOnce(emptySummary);
     api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
     renderPage();
 
     const summary = await screen.findByRole('region', { name: 'Saved review summary' });
     expect(summary).toHaveTextContent('Reviews in active dataset0');
     expect(summary).toHaveTextContent('No rating yet');
+    const qa = screen.getByRole('region', { name: 'Review Q&A' });
+    expect(qa).toHaveTextContent('Use Start ingestion to add reviews');
+    expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
+    expect(within(qa).getByRole('button', { name: 'Ask question' })).toBeDisabled();
+    fireEvent.submit(within(qa).getByRole('button', { name: 'Ask question' }).closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Start ingestion' })).toBeEnabled();
   });
 
+  it.each([
+    [
+      'failed',
+      { ...succeededRun, status: 'failed', reviewCount: 0, errorCode: 'PROVIDER_ERROR' },
+      'latest ingestion attempt failed',
+    ],
+    [
+      'running',
+      { ...succeededRun, status: 'running', reviewCount: 0, completedAt: null },
+      'Ingestion is in progress',
+    ],
+    [
+      'succeeded with no saved reviews',
+      { ...succeededRun, reviewCount: 0 },
+      'Use Start ingestion to add reviews',
+    ],
+  ])(
+    'keeps Q&A unavailable for an empty dataset when the run is %s',
+    async (_label, run, guidance) => {
+      reviewSummary.get.mockResolvedValueOnce(emptySummary);
+      api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(run);
+      renderPage();
+
+      const qa = await screen.findByRole('region', { name: 'Review Q&A' });
+      await waitFor(() => expect(qa).toHaveTextContent(guidance));
+      expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
+      fireEvent.submit(within(qa).getByRole('button', { name: 'Ask question' }).closest('form')!);
+      expect(api.post).not.toHaveBeenCalled();
+      if (run.status === 'failed') {
+        expect(qa).toHaveTextContent('Retry with Start ingestion');
+        expect(screen.getByRole('region', { name: 'Review ingestion' })).toHaveTextContent(
+          'The review service could not provide results.',
+        );
+      }
+    },
+  );
+
   it('refreshes the saved summary after ingestion succeeds', async () => {
-    reviewSummary.get
-      .mockResolvedValueOnce({
-        target: { id: target.id, name: target.name, platform: 'google_maps' },
-        reviewCount: 0,
-        averageRating: null,
-      })
-      .mockResolvedValueOnce({
-        target: { id: target.id, name: target.name, platform: 'google_maps' },
-        reviewCount: 2,
-        averageRating: 3.5,
-      });
+    reviewSummary.get.mockResolvedValueOnce(emptySummary).mockResolvedValueOnce({
+      target: { id: target.id, name: target.name, platform: 'google_maps' },
+      reviewCount: 2,
+      averageRating: 3.5,
+    });
     api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
     api.post.mockResolvedValueOnce(succeededRun);
     renderPage();
 
     await screen.findByText('No rating yet');
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Start ingestion' }));
     expect(await screen.findByText('3.5 out of 5')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('12 reviews saved in this run.')).toBeInTheDocument();
     expect(reviewSummary.get).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toBeEnabled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your question' }), {
+      target: { value: 'What changed?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/api/analysis-targets/target-1/qa', {
+        question: 'What changed?',
+      }),
+    );
   });
 
   it('does not present a saved-review count when its request fails', async () => {
@@ -124,6 +182,87 @@ describe('TargetWorkspacePage', () => {
     );
     expect(screen.queryByText('12')).not.toBeInTheDocument();
     expect(screen.queryByText('Internal error')).not.toBeInTheDocument();
+    const qa = screen.getByRole('region', { name: 'Review Q&A' });
+    expect(qa).toHaveTextContent('Could not confirm saved reviews');
+    expect(qa).not.toHaveTextContent('There are no saved reviews yet');
+    expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
+    fireEvent.submit(within(qa).getByRole('button', { name: 'Ask question' }).closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('does not guess review availability while the saved summary refreshes', async () => {
+    let finishSummary!: (value: typeof emptySummary) => void;
+    reviewSummary.get
+      .mockResolvedValueOnce({ ...emptySummary, reviewCount: 1 })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSummary = resolve;
+          }),
+      );
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    api.post.mockResolvedValueOnce(succeededRun);
+    renderPage();
+
+    await screen.findByText('Reviews in active dataset');
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Your question' })).toBeEnabled(),
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your question' }), {
+      target: { value: 'Can I ask this?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start ingestion' }));
+    const qa = screen.getByRole('region', { name: 'Review Q&A' });
+    await waitFor(() => expect(qa).toHaveTextContent('Checking saved reviews'));
+    expect(qa).not.toHaveTextContent('There are no saved reviews yet');
+    expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
+    expect(within(qa).getByRole('button', { name: 'Ask question' })).toBeDisabled();
+    fireEvent.submit(within(qa).getByRole('button', { name: 'Ask question' }).closest('form')!);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    finishSummary(emptySummary);
+    await waitFor(() => expect(qa).toHaveTextContent('There are no saved reviews yet'));
+    expect(within(qa).getByRole('button', { name: 'Ask question' })).toBeDisabled();
+  });
+
+  it('shows the Q&A section but does not assume zero while the initial summary loads', async () => {
+    let finishSummary!: (value: typeof emptySummary) => void;
+    reviewSummary.get.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSummary = resolve;
+        }),
+    );
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    renderPage();
+
+    const qa = await screen.findByRole('region', { name: 'Review Q&A' });
+    expect(qa).toHaveTextContent('Checking saved reviews');
+    expect(qa).not.toHaveTextContent('There are no saved reviews yet');
+    expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
+    fireEvent.submit(within(qa).getByRole('button', { name: 'Ask question' }).closest('form')!);
+    expect(api.post).not.toHaveBeenCalled();
+    finishSummary(emptySummary);
+    await waitFor(() => expect(qa).toHaveTextContent('Use Start ingestion'));
+  });
+
+  it('keeps Q&A disabled and ingestion retry available after an unsuccessful attempt', async () => {
+    reviewSummary.get.mockResolvedValue(emptySummary);
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce(null);
+    api.post.mockResolvedValueOnce({
+      ...succeededRun,
+      status: 'failed',
+      reviewCount: 0,
+      errorCode: 'PROVIDER_ERROR',
+    });
+    renderPage();
+
+    await screen.findByText('No rating yet');
+    fireEvent.click(screen.getByRole('button', { name: 'Start ingestion' }));
+    const qa = screen.getByRole('region', { name: 'Review Q&A' });
+    await waitFor(() => expect(qa).toHaveTextContent('Retry with Start ingestion'));
+    expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start ingestion' })).toBeEnabled();
+    expect(api.post).toHaveBeenCalledTimes(1);
   });
 
   it('reloads saved reviews even when an ingestion request reports failure', async () => {
@@ -237,6 +376,7 @@ describe('TargetWorkspacePage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Collection stopped early. The review source timed out.',
     );
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toBeEnabled();
   });
 
   it('does not request ingestion data or show target details when access is denied', async () => {
@@ -260,6 +400,17 @@ describe('TargetWorkspacePage', () => {
       'Could not load the current ingestion state. Try again.',
     );
     expect(screen.getByRole('button', { name: 'Start ingestion' })).toBeEnabled();
+  });
+
+  it('does not claim no ingestion attempt when run status is unavailable and saved reviews are zero', async () => {
+    reviewSummary.get.mockResolvedValueOnce(emptySummary);
+    api.get.mockResolvedValueOnce(target).mockRejectedValueOnce(new ApiError(500, 'Try again.'));
+    renderPage();
+
+    const qa = await screen.findByRole('region', { name: 'Review Q&A' });
+    expect(qa).toHaveTextContent('Check the ingestion state and start ingestion');
+    expect(qa).not.toHaveTextContent('No ingestion attempt yet');
+    expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
   });
 
   it('refreshes a persisted failed run after POST 500 instead of presenting an earlier success', async () => {
@@ -816,6 +967,47 @@ describe('TargetWorkspacePage', () => {
       expect(within(qa).getByRole('textbox', { name: 'Your question' })).toHaveValue('');
       expect(screen.queryByDisplayValue(draft)).not.toBeInTheDocument();
       expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('does not carry Q&A availability or private details from a populated target to an empty one', async () => {
+      mockBothTargets();
+      reviewSummary.get
+        .mockResolvedValueOnce({ ...emptySummary, reviewCount: 12 })
+        .mockResolvedValueOnce({
+          ...emptySummary,
+          target: { ...emptySummary.target, id: secondTarget.id, name: secondTarget.name },
+        });
+      api.post.mockResolvedValueOnce({
+        target: { id: target.id, name: target.name, platform: 'google_maps' },
+        outcome: 'grounded_answer',
+        answer: 'Only the first target has espresso reviews.',
+        reviewCount: 12,
+        context: { reviewsUsed: 12, truncated: false },
+      });
+      renderPage();
+      const question = await screen.findByRole('textbox', { name: 'Your question' });
+      await waitFor(() => expect(question).toBeEnabled());
+      fireEvent.change(question, { target: { value: 'What about espresso?' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Ask question' }));
+      expect(
+        await screen.findByText('Only the first target has espresso reviews.'),
+      ).toBeInTheDocument();
+      fireEvent.change(question, { target: { value: 'A private draft' } });
+
+      const qa = await switchToSecondTarget();
+      expect(within(qa).getByRole('textbox', { name: 'Your question' })).toHaveValue('');
+      await waitFor(() => expect(qa).toHaveTextContent('There are no saved reviews yet'));
+      expect(within(qa).getByRole('textbox', { name: 'Your question' })).toBeDisabled();
+      expect(within(qa).getByRole('button', { name: 'Ask question' })).toBeDisabled();
+      expect(screen.getByRole('region', { name: 'Saved review summary' })).toHaveTextContent(
+        'Reviews in active dataset0',
+      );
+      expect(
+        screen.queryByText('Only the first target has espresso reviews.'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByDisplayValue('A private draft')).not.toBeInTheDocument();
+      fireEvent.submit(within(qa).getByRole('button', { name: 'Ask question' }).closest('form')!);
+      expect(api.post).toHaveBeenCalledTimes(1);
     });
 
     it('clears the previous target’s Q&A and validation errors', async () => {

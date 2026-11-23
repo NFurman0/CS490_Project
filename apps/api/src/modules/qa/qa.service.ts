@@ -67,6 +67,18 @@ export function createQaService({
       // Built fresh for every question from this target's rows only: nothing from an
       // earlier question or target can carry over (S2-BR-023, S2-BR-024).
       const context = buildReviewContext(rows, contextTokenBudget);
+      if (context.reviews.length === 0) {
+        // A restrictive budget can exclude every saved review. Never ask the model
+        // to answer with empty context, or misreport the saved dataset as empty.
+        return {
+          target: summary,
+          outcome: 'insufficient_evidence',
+          answer:
+            'This target has saved reviews, but none fit the current question context. Please try again later.',
+          reviewCount: context.availableReviews,
+          context: { reviewsUsed: 0, truncated: true },
+        };
+      }
       if (context.truncated) {
         logger.info(
           {

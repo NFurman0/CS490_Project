@@ -65,6 +65,20 @@ function statusLabel(run: IngestionRunResponse | null): string {
   return 'Failed';
 }
 
+function qaAvailabilityMessage(workspace: WorkspaceData): string | null {
+  if (workspace.summaryError) return 'Could not confirm saved reviews. Try again later.';
+  if (!workspace.summary) return 'Checking saved reviews before questions are available…';
+  // A failed latest attempt can still leave an earlier saved dataset available for Q&A.
+  if (workspace.summary.reviewCount > 0) return null;
+  if (workspace.statusError)
+    return 'There are no saved reviews yet. Check the ingestion state and start ingestion to add reviews.';
+  if (workspace.run?.status === 'running')
+    return 'There are no saved reviews yet. Ingestion is in progress; questions will be available once reviews are saved.';
+  if (workspace.run?.status === 'failed')
+    return 'There are no saved reviews yet. The latest ingestion attempt failed. Retry with Start ingestion.';
+  return 'There are no saved reviews yet. Use Start ingestion to add reviews before asking questions.';
+}
+
 export function TargetWorkspacePage() {
   const { targetId } = useParams();
   const { key: locationKey } = useLocation();
@@ -78,6 +92,7 @@ export function TargetWorkspacePage() {
   const [qaAnswer, setQaAnswer] = useState<{ visitId: string; answer: QaAnswer } | null>(null);
   const [qaError, setQaError] = useState<QaPageError | null>(null);
   const navigationEpoch = useRef(0);
+  const summaryEpoch = useRef(0);
   const qaVisitId = `${locationKey}:${targetId ?? ''}`;
 
   // React may reuse this page for another target while its earlier requests are in flight.
@@ -101,6 +116,9 @@ export function TargetWorkspacePage() {
   const isAsking = askingVisitId === qaVisitId;
   const currentQaAnswer = qaAnswer && qaAnswer.visitId === qaVisitId ? qaAnswer.answer : null;
   const currentQaError = qaError && qaError.visitId === qaVisitId ? qaError.message : null;
+  const qaEnabled =
+    (currentWorkspace?.summary?.reviewCount ?? 0) > 0 && !currentWorkspace?.summaryError;
+  const qaAvailability = currentWorkspace ? qaAvailabilityMessage(currentWorkspace) : null;
 
   useEffect(() => {
     if (!targetId) return;
@@ -119,6 +137,16 @@ export function TargetWorkspacePage() {
           // without claiming a missing run means there have been no attempts.
           statusError = 'Could not load the current ingestion state. Try again.';
         }
+        if (active)
+          setWorkspace({
+            targetId: requestedId,
+            target,
+            run,
+            statusError,
+            summary: null,
+            summaryError: null,
+          });
+        const requestedSummaryEpoch = summaryEpoch.current;
         let summary: ReviewSummary | null = null;
         let summaryError: string | null = null;
         try {
@@ -126,8 +154,10 @@ export function TargetWorkspacePage() {
         } catch {
           summaryError = 'Could not load the saved review summary. Try again.';
         }
-        if (active)
-          setWorkspace({ targetId: requestedId, target, run, statusError, summary, summaryError });
+        if (active && requestedSummaryEpoch === summaryEpoch.current)
+          setWorkspace((current) =>
+            current?.targetId === requestedId ? { ...current, summary, summaryError } : current,
+          );
       } catch (error) {
         if (active) {
           setLoadError({
@@ -159,6 +189,8 @@ export function TargetWorkspacePage() {
     const previousRunId = currentWorkspace?.run?.id;
     const epoch = navigationEpoch.current;
     const isCurrent = () => navigationEpoch.current === epoch;
+    // Ignore a slower initial summary read once a new ingestion has started.
+    summaryEpoch.current += 1;
     setStartingTargetId(requestedId);
     setStartError(null);
     setWorkspace((current) =>
@@ -245,7 +277,7 @@ export function TargetWorkspacePage() {
 
   async function handleAskQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!targetId || isAsking) return;
+    if (!targetId || !qaEnabled || isAsking) return;
 
     const question = currentQuestion.value.trim();
     setQuestionDraft({ ...currentQuestion, visitId: qaVisitId, touched: true });
@@ -391,11 +423,20 @@ export function TargetWorkspacePage() {
                 Ask a question about <strong>{currentWorkspace.target.name}</strong>. ReviewLens
                 answers using this target’s ingested reviews.
               </p>
+              {qaAvailability && (
+                <p className="field-hint" id="qa-availability" role="status">
+                  {qaAvailability}
+                </p>
+              )}
               <form className="qa-form" onSubmit={(event) => void handleAskQuestion(event)}>
                 <div className="form-field">
                   <label htmlFor="qa-question">Your question</label>
                   <textarea
-                    aria-describedby={questionError ? 'qa-question-error' : undefined}
+                    aria-describedby={
+                      [qaAvailability && 'qa-availability', questionError && 'qa-question-error']
+                        .filter(Boolean)
+                        .join(' ') || undefined
+                    }
                     aria-invalid={questionError ? 'true' : undefined}
                     className="form-input qa-question"
                     id="qa-question"
@@ -408,7 +449,7 @@ export function TargetWorkspacePage() {
                     }
                     rows={4}
                     value={currentQuestion.value}
-                    disabled={isAsking}
+                    disabled={!qaEnabled || isAsking}
                   />
                   {questionError && (
                     <p className="field-error" id="qa-question-error" role="alert">
@@ -418,7 +459,7 @@ export function TargetWorkspacePage() {
                 </div>
                 <button
                   className="button button-primary"
-                  disabled={!currentQuestion.value.trim() || isAsking}
+                  disabled={!qaEnabled || !currentQuestion.value.trim() || isAsking}
                   type="submit"
                 >
                   {isAsking ? 'Asking…' : 'Ask question'}
