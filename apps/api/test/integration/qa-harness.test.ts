@@ -210,6 +210,7 @@ describe.skipIf(!hasTestDatabase)('Q&A model boundary with persisted reviews (da
             metadata: {},
           })),
           null,
+          0,
         );
       }
       const { fake, service } = serviceWith();

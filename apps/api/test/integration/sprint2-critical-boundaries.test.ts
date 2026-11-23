@@ -158,6 +158,7 @@ function createInMemoryPersistence() {
         status: 'RUNNING',
         errorCode: null,
         reviewCount: 0,
+        skippedCount: 0,
         startedAt: nextDate(),
         completedAt: null,
       };
@@ -172,6 +173,7 @@ function createInMemoryPersistence() {
         status: outcome.status,
         errorCode: outcome.errorCode,
         reviewCount: outcome.reviewCount,
+        skippedCount: outcome.skippedCount,
         completedAt: nextDate(),
       };
       runRows.set(runId, finished);
@@ -199,6 +201,7 @@ function createInMemoryPersistence() {
       runId,
       batch: readonly NormalizedReview[],
       stoppedEarly,
+      skippedCount,
     ) {
       const target = targetRows.get(targetId);
       if (!target || target.ownerId !== ownerId) {
@@ -227,6 +230,7 @@ function createInMemoryPersistence() {
         status: 'SUCCEEDED',
         errorCode: stoppedEarly,
         reviewCount: batch.length,
+        skippedCount,
         completedAt: nextDate(),
       };
       runRows.set(runId, finished);
