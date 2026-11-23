@@ -26,6 +26,7 @@ const succeededRun = {
   status: 'succeeded' as const,
   errorCode: null,
   reviewCount: 12,
+  skippedCount: 0,
   startedAt: '2026-01-02T00:00:00.000Z',
   completedAt: '2026-01-02T00:01:00.000Z',
 };
@@ -193,6 +194,37 @@ describe('TargetWorkspacePage', () => {
     renderPage();
 
     expect(await screen.findByText('In progress')).toBeInTheDocument();
+    expect(screen.queryByText(/reviews saved in this run/)).not.toBeInTheDocument();
+  });
+
+  it('shows skipped records after a partial run without counting them as saved reviews', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce({
+      ...succeededRun,
+      reviewCount: 2,
+      skippedCount: 3,
+      errorCode: 'PROVIDER_TIMEOUT',
+    });
+    renderPage();
+
+    expect(await screen.findByText('2 reviews saved in this run.')).toBeInTheDocument();
+    expect(screen.getByText(/3 source records skipped/)).toHaveTextContent(
+      'They were not saved by this attempt and do not add to the review summary or Q&A dataset.',
+    );
+    expect(screen.getByText('Partially succeeded')).toBeInTheDocument();
+  });
+
+  it('shows skipped records when no source review could be used', async () => {
+    api.get.mockResolvedValueOnce(target).mockResolvedValueOnce({
+      ...succeededRun,
+      status: 'failed',
+      reviewCount: 0,
+      skippedCount: 2,
+      errorCode: 'SOURCE_NO_REVIEWS',
+    });
+    renderPage();
+
+    expect(await screen.findByText(/2 source records skipped/)).toBeInTheDocument();
+    expect(screen.getByText('Failed')).toBeInTheDocument();
     expect(screen.queryByText(/reviews saved in this run/)).not.toBeInTheDocument();
   });
 

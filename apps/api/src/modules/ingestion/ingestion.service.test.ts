@@ -47,6 +47,7 @@ function fakeRuns() {
         status: 'RUNNING',
         errorCode: null,
         reviewCount: 0,
+        skippedCount: 0,
         startedAt: new Date(),
         completedAt: null,
       };
@@ -77,12 +78,14 @@ function setup({
   // It cannot prove rows exist in PostgreSQL; reviews.test.ts does that.
   const reviews: ReviewsRepository = {
     findByTarget: vi.fn(async () => []),
-    saveBatchAndFinishRun: vi.fn(async (_ownerId, _targetId, runId, batch, stoppedEarly) =>
-      runs.repo.finish(runId, {
-        status: 'SUCCEEDED',
-        errorCode: stoppedEarly,
-        reviewCount: batch.length,
-      }),
+    saveBatchAndFinishRun: vi.fn(
+      async (_ownerId, _targetId, runId, batch, stoppedEarly, skippedCount) =>
+        runs.repo.finish(runId, {
+          status: 'SUCCEEDED',
+          errorCode: stoppedEarly,
+          reviewCount: batch.length,
+          skippedCount,
+        }),
     ),
   };
   const fetchReviews = vi.fn<ReviewSource['fetchReviews']>(async () => {
@@ -176,6 +179,7 @@ describe('startIngestion', () => {
       status: 'SUCCEEDED',
       errorCode: null,
       reviewCount: 2,
+      skippedCount: 1,
       completedAt: expect.any(Date),
     });
   });
@@ -199,6 +203,7 @@ describe('startIngestion', () => {
       status: 'FAILED',
       errorCode: 'SOURCE_NO_REVIEWS',
       reviewCount: 0,
+      skippedCount: 2,
       completedAt: expect.any(Date),
     });
   });
@@ -218,6 +223,7 @@ describe('startIngestion', () => {
       status: 'FAILED',
       errorCode: 'SOURCE_NO_REVIEWS',
       reviewCount: 0,
+      skippedCount: 1,
     });
   });
 
@@ -235,7 +241,12 @@ describe('startIngestion', () => {
 
   it('keeps a partial result as succeeded and records why paging stopped', async () => {
     const { service } = setup({
-      result: { ok: true, place, reviews: [rawReview(1)], stoppedEarly: 'PROVIDER_TIMEOUT' },
+      result: {
+        ok: true,
+        place,
+        reviews: [rawReview(1), { ...rawReview(2), rating: null }],
+        stoppedEarly: 'PROVIDER_TIMEOUT',
+      },
     });
 
     const run = await service.startIngestion(OWNER_ID, TARGET_ID);
@@ -244,6 +255,7 @@ describe('startIngestion', () => {
       status: 'SUCCEEDED',
       errorCode: 'PROVIDER_TIMEOUT',
       reviewCount: 1,
+      skippedCount: 1,
     });
   });
 

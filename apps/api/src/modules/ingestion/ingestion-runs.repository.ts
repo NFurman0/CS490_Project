@@ -9,6 +9,7 @@ export interface FinishedRun {
   status: Exclude<IngestionRunStatus, 'RUNNING'>;
   errorCode: IngestionRunErrorCode | null;
   reviewCount: number;
+  skippedCount: number;
 }
 
 export interface IngestionRunsRepository {
@@ -33,10 +34,10 @@ export function createIngestionRunsRepository(
       });
     },
 
-    finish(runId, { status, errorCode, reviewCount }) {
+    finish(runId, { status, errorCode, reviewCount, skippedCount }) {
       return prisma.ingestionRun.update({
         where: { id: runId },
-        data: { status, errorCode, reviewCount, completedAt: new Date() },
+        data: { status, errorCode, reviewCount, skippedCount, completedAt: new Date() },
       });
     },
 
