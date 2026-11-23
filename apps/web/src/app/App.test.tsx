@@ -1,17 +1,20 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
+import { ClerkProviderWithRouter } from './routing/ClerkProviderWithRouter';
 
 // Clerk is replaced with a controllable fake: tests never contact Clerk.
 const clerk = vi.hoisted(() => ({
   isLoaded: true,
   isSignedIn: false,
   getToken: async (): Promise<string | null> => 'session-token',
+  provider: vi.fn(({ children }: { children: ReactNode }) => children),
 }));
 
 vi.mock('@clerk/react', () => ({
+  ClerkProvider: clerk.provider,
   Show: ({ when, children }: { when: 'signed-in' | 'signed-out'; children: ReactNode }) =>
     clerk.isLoaded && (when === 'signed-in') === clerk.isSignedIn ? children : null,
   SignInButton: ({ children }: { children: ReactNode }) => children,
@@ -162,11 +165,14 @@ describe('protected pages', () => {
 });
 
 describe('home page', () => {
-  it('offers sign-in to a signed-out user', () => {
+  it('offers ReviewLens sign-in in the header and home page to a signed-out user', () => {
     renderAt('/');
 
-    expect(screen.getByRole('banner')).toHaveTextContent('ReviewLens');
-    expect(screen.getAllByRole('button', { name: /sign in/i }).length).toBeGreaterThan(0);
+    for (const area of ['banner', 'main']) {
+      expect(
+        within(screen.getByRole(area)).getByRole('button', { name: 'Sign in to ReviewLens' }),
+      ).toBeInTheDocument();
+    }
     expect(location()).toBe('/');
   });
 
@@ -186,10 +192,39 @@ describe('home page', () => {
   });
 });
 
+describe('sign-in appearance', () => {
+  it.each([
+    ['pk_test_example', 'reviewlens-sign-in-dev-footer'],
+    ['pk_live_example', undefined],
+  ])('scopes the attribution override for %s', (publishableKey, footer) => {
+    render(
+      <MemoryRouter>
+        <ClerkProviderWithRouter publishableKey={publishableKey}>
+          ReviewLens
+        </ClerkProviderWithRouter>
+      </MemoryRouter>,
+    );
+
+    expect(clerk.provider.mock.lastCall?.[0]).toEqual(
+      expect.objectContaining({
+        appearance: { signIn: expect.objectContaining({ elements: { footer } }) },
+      }),
+    );
+  });
+});
+
 describe('errors', () => {
-  it('shows a not-found page for unknown addresses', () => {
-    renderAt('/no-such-page');
+  it('shows the Roblox references on a missing page and lets the user return home', () => {
+    const { fetchMock } = renderAt('/no-such-page');
+
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.getByText(/Oof!.*\bobby\b/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('link', { name: 'Go to ReviewLens home' }));
+
+    expect(location()).toBe('/');
+    expect(screen.queryByText(/\bobby\b/)).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('explains in plain language when the API rejects the session', async () => {

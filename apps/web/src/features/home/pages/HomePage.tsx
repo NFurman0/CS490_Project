@@ -27,7 +27,7 @@ export function HomePage() {
       </p>
       <SignInButton mode="modal">
         <button type="button" className="button button-primary">
-          Sign in to get started
+          Sign in to ReviewLens
         </button>
       </SignInButton>
     </>

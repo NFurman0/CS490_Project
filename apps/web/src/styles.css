@@ -54,6 +54,11 @@ body {
   align-items: center;
 }
 
+/* Hide the attribution row while keeping sign-up links and the development notice visible. */
+.reviewlens-sign-in-dev-footer div:has(> a[aria-label='Clerk logo']) {
+  display: none;
+}
+
 .shell-main {
   min-width: 0;
   padding: var(--space-4) var(--space-3);

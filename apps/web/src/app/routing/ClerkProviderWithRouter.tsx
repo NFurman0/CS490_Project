@@ -15,6 +15,17 @@ export function ClerkProviderWithRouter({
     <ClerkProvider
       publishableKey={publishableKey}
       afterSignOutUrl="/"
+      appearance={{
+        signIn: {
+          variables: { colorPrimary: '#1b56fd', fontFamily: 'var(--font-body)' },
+          elements: {
+            // Development instances allow unbranded UI. Production uses the Clerk dashboard setting.
+            footer: publishableKey.startsWith('pk_test_')
+              ? 'reviewlens-sign-in-dev-footer'
+              : undefined,
+          },
+        },
+      }}
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
     >
