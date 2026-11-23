@@ -19,6 +19,7 @@ export function ClerkProviderWithRouter({
         signIn: {
           variables: { colorPrimary: '#1b56fd', fontFamily: 'var(--font-body)' },
           elements: {
+            header: 'reviewlens-sign-in-header',
             // Development instances allow unbranded UI. Production uses the Clerk dashboard setting.
             footer: publishableKey.startsWith('pk_test_')
               ? 'reviewlens-sign-in-dev-footer'

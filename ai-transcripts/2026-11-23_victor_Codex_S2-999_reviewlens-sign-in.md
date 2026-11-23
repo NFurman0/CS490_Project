@@ -49,3 +49,39 @@ The browser checks passed for both sign-in buttons and the 404 link. The full pr
 ```text
 The project checks now pass, including 338 API tests against the isolated test database. I updated the two fixtures for the new skipped-review count. I’ll prepare the GitHub comparison and leave the pull request form open.
 ```
+
+## Victor
+
+```text
+also add something to the regular login wait
+```
+
+## Victor
+
+```text
+like something visible for a regular login,
+```
+
+## Codex
+
+```text
+I’ll add a Roblox checkpoint reference directly to the sign-in dialog so it’s visible during a regular login. I’ll verify it there before submitting the PR.
+```
+
+## Victor
+
+```text
+literally just the logo or something
+```
+
+## Codex
+
+```text
+I’ll make it visual: a small Roblox-inspired tilted block in the sign-in dialog.
+```
+
+## Codex
+
+```text
+The icon is visible above “Sign in to ReviewLens” on desktop and mobile, and all 468 local tests passed again. I’ll push this final change and submit the PR.
+```

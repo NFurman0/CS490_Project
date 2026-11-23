@@ -196,21 +196,28 @@ describe('sign-in appearance', () => {
   it.each([
     ['pk_test_example', 'reviewlens-sign-in-dev-footer'],
     ['pk_live_example', undefined],
-  ])('scopes the attribution override for %s', (publishableKey, footer) => {
-    render(
-      <MemoryRouter>
-        <ClerkProviderWithRouter publishableKey={publishableKey}>
-          ReviewLens
-        </ClerkProviderWithRouter>
-      </MemoryRouter>,
-    );
+  ])(
+    'brands the sign-in dialog and scopes the attribution override for %s',
+    (publishableKey, footer) => {
+      render(
+        <MemoryRouter>
+          <ClerkProviderWithRouter publishableKey={publishableKey}>
+            ReviewLens
+          </ClerkProviderWithRouter>
+        </MemoryRouter>,
+      );
 
-    expect(clerk.provider.mock.lastCall?.[0]).toEqual(
-      expect.objectContaining({
-        appearance: { signIn: expect.objectContaining({ elements: { footer } }) },
-      }),
-    );
-  });
+      expect(clerk.provider.mock.lastCall?.[0]).toEqual(
+        expect.objectContaining({
+          appearance: {
+            signIn: expect.objectContaining({
+              elements: { footer, header: 'reviewlens-sign-in-header' },
+            }),
+          },
+        }),
+      );
+    },
+  );
 });
 
 describe('errors', () => {
