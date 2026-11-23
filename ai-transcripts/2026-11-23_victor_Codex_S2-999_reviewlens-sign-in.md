@@ -85,3 +85,21 @@ I’ll make it visual: a small Roblox-inspired tilted block in the sign-in dialo
 ```text
 The icon is visible above “Sign in to ReviewLens” on desktop and mobile, and all 468 local tests passed again. I’ll push this final change and submit the PR.
 ```
+
+## Victor
+
+```text
+please put the offical logo not the boof
+```
+
+## Codex
+
+```text
+I’ll replace the blue lookalike with the official Roblox mark and verify it in the sign-in dialog before updating the PR.
+```
+
+## Codex
+
+```text
+PR #92 has already merged. I found the official black wordmark in Roblox’s press kit and will use it in a small follow-up from current `main`.
+```
