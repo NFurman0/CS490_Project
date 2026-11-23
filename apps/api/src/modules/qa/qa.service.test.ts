@@ -471,6 +471,22 @@ describe('Q&A orchestration (deterministic harness)', () => {
     expect(fake.requests).toHaveLength(0);
   });
 
+  it('does not call the model when saved reviews cannot fit the question context', async () => {
+    const { fake, service, findByTarget } = setup(storedReviews, 1);
+
+    const result = await service.ask(OWNER, TARGET_ID, 'What do people like?');
+
+    expect(findByTarget).toHaveBeenCalledWith(OWNER, TARGET_ID);
+    expect(result).toMatchObject({
+      outcome: 'insufficient_evidence',
+      reviewCount: 2,
+      context: { reviewsUsed: 0, truncated: true },
+    });
+    expect(result.answer).toContain('saved reviews');
+    expect(result.answer).not.toContain('no ingested reviews');
+    expect(fake.requests).toHaveLength(0);
+  });
+
   it("rejects another user's target before reading reviews or calling the model", async () => {
     const { fake, service, findByTarget } = setup();
 

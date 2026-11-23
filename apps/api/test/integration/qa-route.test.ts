@@ -234,8 +234,69 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
       .send({ question: 'Anything?' })
       .expect(200);
 
-    expect(res.body.data.outcome).toBe('no_review_data');
+    expect(qaAnswerResponseSchema.parse(res.body).data).toMatchObject({
+      target: { id: seeded.target.id, name: 'Empty Cafe' },
+      outcome: 'no_review_data',
+      reviewCount: 0,
+      context: { reviewsUsed: 0, truncated: false },
+    });
+    expect(res.body.data.answer).toMatch(/no ingested reviews yet.*ingest reviews/i);
+    expect(await testPrisma.review.count({ where: { targetId: seeded.target.id } })).toBe(0);
     expect(fake.requests).toHaveLength(0);
+  });
+
+  it('returns no_review_data after a failed run saved no reviews', async () => {
+    const seeded = await seedTargetWithReviews('clerk_a', 'Empty Cafe', []);
+    await testPrisma.ingestionRun.create({
+      data: {
+        targetId: seeded.target.id,
+        status: 'FAILED',
+        errorCode: 'SOURCE_NO_REVIEWS',
+        completedAt: new Date(),
+      },
+    });
+    const { app, fake } = appAs('clerk_a');
+
+    const res = await request(app)
+      .post(qaUrl(seeded.target.id))
+      .send({ question: 'Anything?' })
+      .expect(200);
+
+    expect(qaAnswerResponseSchema.parse(res.body).data).toMatchObject({
+      outcome: 'no_review_data',
+      reviewCount: 0,
+      context: { reviewsUsed: 0, truncated: false },
+    });
+    expect(res.body.data.answer).toContain('Ingest reviews before asking questions.');
+    expect(await testPrisma.review.count({ where: { targetId: seeded.target.id } })).toBe(0);
+    expect(fake.requests).toHaveLength(0);
+  });
+
+  it('answers from previously saved reviews after a later failed ingestion', async () => {
+    const seeded = await seedTargetWithReviews('clerk_a', 'Copper Kettle Cafe', cafeReviews);
+    await testPrisma.ingestionRun.create({
+      data: {
+        targetId: seeded.target.id,
+        status: 'FAILED',
+        errorCode: 'PROVIDER_ERROR',
+        reviewCount: 0,
+        completedAt: new Date(),
+      },
+    });
+    const { app, fake } = appAs('clerk_a');
+
+    const res = await request(app)
+      .post(qaUrl(seeded.target.id))
+      .send({ question: 'What do people like?' })
+      .expect(200);
+
+    expect(qaAnswerResponseSchema.parse(res.body).data).toMatchObject({
+      outcome: 'grounded_answer',
+      reviewCount: 3,
+      context: { reviewsUsed: 3, truncated: false },
+    });
+    expect(fake.requests).toHaveLength(1);
+    expect(fake.suppliedReviewIds().sort()).toEqual([...seeded.reviewIds].sort());
   });
 
   it('rejects a signed-out request with 401, without calling the model', async () => {
