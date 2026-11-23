@@ -10,7 +10,7 @@ export function AccountControls() {
       <Show when="signed-out">
         <SignInButton mode="modal">
           <button type="button" className="button button-primary">
-            Sign in
+            Sign in to ReviewLens
           </button>
         </SignInButton>
       </Show>

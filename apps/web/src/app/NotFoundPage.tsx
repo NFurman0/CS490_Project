@@ -4,7 +4,7 @@ export function NotFoundPage() {
   return (
     <>
       <h1>Page not found</h1>
-      <p>This page doesn’t exist. Check the address, or go back to the start.</p>
+      <p>Oof! Wrong turn in the obby. Check the address, or head back home.</p>
       <p>
         <Link to="/">Go to ReviewLens home</Link>
       </p>

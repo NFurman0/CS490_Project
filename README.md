@@ -76,9 +76,11 @@ ReviewLens uses [Clerk](https://clerk.com) for sign-in. The keys in your `.env` 
 1. In the Clerk Dashboard, open the team's development application and go to **Configure → API keys**.
 2. Copy the **publishable key** (`pk_test_...`) into `VITE_CLERK_PUBLISHABLE_KEY` in `apps/web/.env` and `CLERK_PUBLISHABLE_KEY` in `apps/api/.env`.
 3. Copy the **secret key** (`sk_test_...`) into `CLERK_SECRET_KEY` in `apps/api/.env` only. It must never go in the web app's `.env`.
-4. Run `npm run dev`, open <http://localhost:5173>, and choose **Sign in**. After signing in, the page confirms that the API accepted your session.
+4. Run `npm run dev`, open <http://localhost:5173>, and choose **Sign in to ReviewLens**. After signing in, the page confirms that the API accepted your session.
 
 Every page except the home page requires sign-in. Opening one while signed out, such as <http://localhost:5173/analysis-targets>, sends you to sign in and then back to that page.
+
+For a Clerk production instance, badge visibility is managed by the [Clerk Dashboard branding setting](https://clerk.com/docs/react/reference/components/overview#secured-by-clerk-branding).
 
 To check the API directly, `curl -i http://localhost:3000/api/session` returns `401` without a session.
 
