@@ -509,6 +509,65 @@ describe('TargetWorkspacePage', () => {
       );
     });
 
+    it('asks the next question about Target B and shows only B’s summary (S2-018)', async () => {
+      const secondRun = {
+        ...succeededRun,
+        id: 'run-2',
+        targetId: secondTarget.id,
+        reviewCount: 40,
+      };
+      api.get
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(succeededRun)
+        .mockResolvedValueOnce(secondTarget)
+        .mockResolvedValueOnce(secondRun);
+      api.post
+        .mockResolvedValueOnce({
+          target: { id: target.id, name: target.name, platform: 'google_maps' },
+          outcome: 'grounded_answer',
+          answer: 'Reviewers keep mentioning battery life.',
+          reviewCount: 12,
+          context: { reviewsUsed: 12, truncated: false },
+        })
+        .mockResolvedValueOnce({
+          target: { id: secondTarget.id, name: secondTarget.name, platform: 'google_maps' },
+          outcome: 'grounded_answer',
+          answer: 'Reviewers keep mentioning customer service.',
+          reviewCount: 40,
+          context: { reviewsUsed: 25, truncated: true },
+        });
+
+      renderPage();
+      await askAbout('What do reviewers talk about most?');
+      expect(
+        await screen.findByText('Reviewers keep mentioning battery life.'),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('link', { name: 'Other target' }));
+      expect(await screen.findByRole('heading', { name: 'Second target' })).toBeInTheDocument();
+      expect(screen.queryByText('Reviewers keep mentioning battery life.')).not.toBeInTheDocument();
+      await askAbout('What do reviewers talk about most?');
+
+      const response = await screen.findByRole('region', { name: 'ReviewLens response' });
+      expect(api.post).toHaveBeenLastCalledWith('/api/analysis-targets/target-2/qa', {
+        question: 'What do reviewers talk about most?',
+      });
+      expect(
+        within(response).getByRole('heading', { name: 'Answer from Second target’s reviews' }),
+      ).toBeInTheDocument();
+      expect(
+        within(response).getByText('Reviewers keep mentioning customer service.'),
+      ).toBeInTheDocument();
+      expect(within(response).getByText('Based on 25 of 40 reviews.')).toBeInTheDocument();
+
+      // The ingestion summary is Target B's, and nothing from Target A remains.
+      const ingestion = screen.getByRole('region', { name: 'Review ingestion' });
+      expect(within(ingestion).getByText('40 reviews saved in this run.')).toBeInTheDocument();
+      expect(screen.queryByText('12 reviews saved in this run.')).not.toBeInTheDocument();
+      expect(screen.queryByText(/battery life/)).not.toBeInTheDocument();
+      expect(screen.queryByText(target.name)).not.toBeInTheDocument();
+    });
+
     it('ignores the previous target’s load when it finishes after the switch', async () => {
       let finishFirstTarget!: (value: typeof target) => void;
       api.get.mockImplementation((path: string) => {

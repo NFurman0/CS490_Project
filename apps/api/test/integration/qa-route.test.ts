@@ -325,6 +325,89 @@ describe.skipIf(!hasTestDatabase)('POST /api/analysis-targets/:targetId/qa (data
     expect(fake.requests).toHaveLength(0);
   });
 
+  describe('switching the active target (S2-018)', () => {
+    // Each dataset repeats its own phrase, so any leak between targets is obvious.
+    const BATTERY = 'battery life';
+    const SERVICE = 'customer service';
+    const batteryReviews = [
+      { text: `Great ${BATTERY}, lasts two days.`, rating: 5 },
+      { text: `The ${BATTERY} dropped after the update.`, rating: 2 },
+      { text: `Decent ${BATTERY} for the price.`, rating: 4 },
+    ];
+    const serviceReviews = [
+      { text: `The ${SERVICE} team called me back fast.`, rating: 5 },
+      { text: `Slow ${SERVICE} on weekends.`, rating: 2 },
+      { text: `Friendly ${SERVICE} at the front desk.`, rating: 4 },
+      { text: `${SERVICE} fixed my billing issue.`, rating: 3 },
+    ];
+
+    async function seedTwoTargets() {
+      const a = await seedTargetWithReviews('clerk_a', 'Volt Phone', batteryReviews);
+      const b = await seedTargetWithReviews('clerk_a', 'Helpdesk Pro', serviceReviews);
+      return { a, b };
+    }
+
+    // Answers with whichever phrase the supplied reviews mention, so the response
+    // itself shows which dataset the model saw.
+    function topicEchoModel() {
+      return createFakeQaModel(({ reviews }) => {
+        const all = reviews.map((review) => review.text).join(' ');
+        const topics = [BATTERY, SERVICE].filter((topic) => all.includes(topic));
+        return { outcome: 'grounded_answer', answer: `Reviewers discuss ${topics.join(' and ')}.` };
+      });
+    }
+
+    it("uses only Target B's reviews after switching from Target A", async () => {
+      const { a, b } = await seedTwoTargets();
+      const { app, fake } = appAs('clerk_a', topicEchoModel());
+      const question = { question: 'What do reviewers talk about most?' };
+
+      await request(app).post(qaUrl(a.target.id)).send(question).expect(200);
+      const res = await request(app).post(qaUrl(b.target.id)).send(question).expect(200);
+
+      const afterSwitch = fake.lastRequest();
+      expect(afterSwitch.reviews.map((review) => review.text).sort()).toEqual(
+        serviceReviews.map((review) => review.text).sort(),
+      );
+      expect(fake.suppliedReviewIds().sort()).toEqual([...b.reviewIds].sort());
+      expect(JSON.stringify(afterSwitch)).not.toContain(BATTERY);
+      expect(afterSwitch.target).toEqual({ name: 'Helpdesk Pro', platform: 'GOOGLE_MAPS' });
+      expect(afterSwitch.systemPrompt).toContain('Helpdesk Pro');
+      expect(afterSwitch.systemPrompt).not.toContain('Volt Phone');
+
+      // The response summary describes Target B, not Target A.
+      expect(qaAnswerResponseSchema.parse(res.body).data).toMatchObject({
+        target: { id: b.target.id, name: 'Helpdesk Pro' },
+        answer: `Reviewers discuss ${SERVICE}.`,
+        reviewCount: serviceReviews.length,
+        context: { reviewsUsed: serviceReviews.length, truncated: false },
+      });
+      expect(JSON.stringify(res.body)).not.toContain(BATTERY);
+      expect(JSON.stringify(res.body)).not.toContain('Volt Phone');
+    });
+
+    it("returns to Target A's reviews alone after switching A → B → A", async () => {
+      const { a, b } = await seedTwoTargets();
+      const { app, fake } = appAs('clerk_a', topicEchoModel());
+      const question = { question: 'What do reviewers talk about most?' };
+
+      await request(app).post(qaUrl(a.target.id)).send(question).expect(200);
+      await request(app).post(qaUrl(b.target.id)).send(question).expect(200);
+      const res = await request(app).post(qaUrl(a.target.id)).send(question).expect(200);
+
+      expect(fake.requests).toHaveLength(3);
+      expect(fake.suppliedReviewIds().sort()).toEqual([...a.reviewIds].sort());
+      expect(JSON.stringify(fake.lastRequest())).not.toContain(SERVICE);
+      expect(fake.lastRequest().systemPrompt).toContain('Volt Phone');
+      expect(res.body.data).toMatchObject({
+        target: { id: a.target.id, name: 'Volt Phone' },
+        answer: `Reviewers discuss ${BATTERY}.`,
+        reviewCount: batteryReviews.length,
+        context: { reviewsUsed: batteryReviews.length, truncated: false },
+      });
+    });
+  });
+
   it('returns 503 AI_SERVICE_UNAVAILABLE when the model fails, without provider details', async () => {
     const seeded = await seedTargetWithReviews('clerk_a', 'Copper Kettle Cafe', cafeReviews);
     const { app, fake } = appAs('clerk_a');
