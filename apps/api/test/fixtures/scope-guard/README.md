@@ -4,7 +4,7 @@ Repeatable evaluation dataset and criteria used to verify that ReviewLens Q&A st
 
 ## Files
 
-- `evaluation-set.json`: Canonical fixture containing a synthetic `AnalysisTarget` (`Copper Kettle Cafe`, platform `google_maps`), 5 normalized `Review` records matching `@reviewlens/shared`'s `reviewSchema`, and 13 representative evaluation cases across all 5 required scope categories.
+- `evaluation-set.json`: Canonical fixture containing a synthetic `AnalysisTarget` (`Copper Kettle Cafe`, platform `google_maps`), 6 normalized `Review` records matching `@reviewlens/shared`'s `reviewSchema`, and 20 representative evaluation cases across all 5 required scope categories. One active-target review explicitly mentions a competitor and an external platform to test attributed statements against unsupported claims.
 - `apps/api/test/helpers/scope-guard-evaluator.ts`: Zod schema validation (`scopeGuardEvaluationSetSchema`), loader (`loadScopeGuardEvaluationSet`), and behavioral response evaluator (`evaluateScopeGuardResponse`, `evaluateScopeGuardSuite`).
 - `apps/api/test/helpers/scope-guard-evaluator.test.ts`: Automated Vitest suite verifying dataset completeness, schema invariants, paraphrased acceptable answers, and rejection of hallucinated or out-of-scope responses.
 
@@ -17,6 +17,14 @@ Repeatable evaluation dataset and criteria used to verify that ReviewLens Q&A st
 | `general_knowledge`     | `out_of_scope_refusal`  | `S2-014`, `S2-BR-015`–`016`, `019`–`021` | Unrelated world-knowledge or coding questions (weather forecast, Python merge sort, trivia).                                                          |
 | `other_entity`          | `out_of_scope_refusal`  | `S2-015`, `S2-BR-017`–`021`              | Questions about another business or cross-entity comparisons absent from the active dataset (`Blue Bottle Coffee`, `Starbucks Reserve`).              |
 | `other_platform`        | `out_of_scope_refusal`  | `S2-015`, `S2-BR-017`–`021`              | Questions requesting reviews from unsupported or non-ingested platforms (`Yelp`, `TripAdvisor`, `Amazon`).                                            |
+
+## S2-015 evidence boundary
+
+The sixth synthetic Google Maps review belongs to **Copper Kettle Cafe**. Its reviewer says they preferred Copper Kettle's espresso to Starbucks and incidentally mentions a Yelp link. This is evidence of **one Copper Kettle reviewer's statement**, not a Starbucks review or a Yelp review. The `in-scope-004` case permits an attributed description of that statement; `other-entity-005` asks for an overall winner, which that statement cannot establish. `in-scope-005` checks that an incidental Yelp mention does not block a patio question about the active target.
+
+Other entity/platform cases ask about an unidentified café, another business's customers, Yelp reviews, external ratings, or a mixed Amazon comparison. Their `samplePassingResponse` fields demonstrate scoped refusals, while `sampleFailingResponse` fields contain unsupported assertions the evaluator must reject. Each case records its purpose in `rationale`, its expected model `outcome`, and text criteria. JSON does not allow inline comments, so those fields document the individual cases.
+
+Service tests send the full synthetic active-target review set to a fake model and check its recorded request. HTTP tests seed the isolated test database and verify that the owner-scoped repository supplies only the caller's active target. Both tests control the fake model's answer; they verify wiring and response evaluation, **not** Gemini's independent judgment. The service validates the response shape at runtime but does not run the behavioral evaluator on production answers.
 
 ## Behavioral Evaluation Model
 

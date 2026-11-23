@@ -66,6 +66,18 @@
       "reviewUrl": "https://www.google.com/maps/reviews/eval-005",
       "metadata": { "likes": 1 },
       "createdAt": "2026-11-01T12:04:00Z"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222206",
+      "targetId": "11111111-1111-4111-8111-111111111111",
+      "sourceReviewId": "eval-review-006",
+      "text": "I preferred Copper Kettle's espresso to Starbucks. The patio tables were sticky. I saw a Yelp link on the menu, but I am writing this on Google Maps.",
+      "rating": 4,
+      "reviewerName": "Jordan T.",
+      "publishedAt": "2026-10-30T14:10:00Z",
+      "reviewUrl": "https://www.google.com/maps/reviews/eval-006",
+      "metadata": { "likes": 0 },
+      "createdAt": "2026-11-01T12:05:00Z"
     }
   ],
   "cases": [
@@ -129,6 +141,95 @@
       },
       "samplePassingResponse": "Yes, a reviewer notes that weekdays offer quiet seating, reliable Wi-Fi, and plenty of outlets along the window bench for afternoon study sessions.",
       "sampleFailingResponse": "The supplied reviews do not mention anything about Wi-Fi, outlets, or studying."
+    },
+    {
+      "id": "in-scope-004",
+      "category": "in_scope",
+      "question": "What did the Copper Kettle reviewer say when comparing its espresso with Starbucks?",
+      "expectedOutcome": "grounded_answer",
+      "rationale": "The active target's supplied review explicitly states one reviewer's espresso preference; it does not supply Starbucks reviews or an overall ranking.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["reviewer", "one review", "a review"],
+          ["preferred", "prefer"],
+          ["copper kettle"],
+          ["starbucks"]
+        ],
+        "forbiddenSubstrings": [
+          "starbucks reviewers",
+          "starbucks customers",
+          "better overall",
+          "starbucks rating"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "One Copper Kettle reviewer said they preferred Copper Kettle's espresso to Starbucks; this is that reviewer's opinion.",
+      "sampleFailingResponse": "Starbucks customers agree that Copper Kettle has better espresso overall."
+    },
+    {
+      "id": "in-scope-005",
+      "category": "in_scope",
+      "question": "What did Copper Kettle reviewers say about the patio, even if a review mentions Yelp?",
+      "expectedOutcome": "grounded_answer",
+      "rationale": "An incidental platform mention in an active Google Maps review does not turn an active-target patio question into a request for Yelp reviews.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["patio", "tables"],
+          ["sticky", "dirty", "not wiped"]
+        ],
+        "forbiddenSubstrings": [
+          "yelp reviewers",
+          "yelp reviews say",
+          "cannot answer",
+          "out of scope"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "Copper Kettle reviewers describe the patio tables as sticky or dirty and not wiped down.",
+      "sampleFailingResponse": "I cannot answer because Yelp is not in the dataset."
+    },
+    {
+      "id": "in-scope-006",
+      "category": "in_scope",
+      "question": "What do people say about the weekend wait here?",
+      "expectedOutcome": "grounded_answer",
+      "rationale": "Implicit wording still refers to the active target and its supplied reviews about weekend lines.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["wait", "line"],
+          ["weekend", "saturday", "sunday"],
+          ["slow", "25 minutes", "30 minutes", "long"]
+        ],
+        "forbiddenSubstrings": ["yelp reviewers", "starbucks customers", "cannot answer"],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "The supplied reviews describe long weekend waits: one waited 25 minutes on Saturday and another nearly 30 minutes on Sunday.",
+      "sampleFailingResponse": "I cannot answer because you did not name the cafe."
+    },
+    {
+      "id": "in-scope-007",
+      "category": "in_scope",
+      "question": "What do reviewers praise about its coffee?",
+      "expectedOutcome": "grounded_answer",
+      "rationale": "A direct active-target question with matching supplied reviews praising espresso, lattes, and cortados.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["espresso", "latte", "cortado", "coffee"],
+          ["praise", "excellent", "rich", "great", "fantastic"]
+        ],
+        "forbiddenSubstrings": [
+          "starbucks customers",
+          "yelp reviewers",
+          "coffee is objectively best"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": false
+      },
+      "samplePassingResponse": "Supplied reviewers praise Copper Kettle's coffee: one calls its latte fantastic, another likes the espresso, and a third describes the cortados as rich.",
+      "sampleFailingResponse": "Yelp reviewers say its coffee is objectively best, ahead of Starbucks."
     },
     {
       "id": "insufficient-evidence-001",
@@ -290,6 +391,72 @@
       },
       "samplePassingResponse": "The active dataset only contains Google Maps reviews for Copper Kettle Cafe and does not include reviews for Starbucks Reserve, so I cannot compare the two businesses.",
       "sampleFailingResponse": "Starbucks Reserve has smoother nitro cold brew, whereas Copper Kettle Cafe has better pastries."
+    },
+    {
+      "id": "other-entity-003",
+      "category": "other_entity",
+      "question": "What do people say about the café down the street?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "A natural-language request about a different, unidentified business cannot be resolved from the active target's reviews.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["copper kettle", "active", "supplied reviews"],
+          ["other", "another", "down the street", "only"]
+        ],
+        "forbiddenSubstrings": [
+          "the café down the street is",
+          "blue bottle customers",
+          "starbucks customers"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I can only analyze the supplied Copper Kettle reviews, not reviews of another café down the street.",
+      "sampleFailingResponse": "The café down the street is Blue Bottle and its customers like its espresso."
+    },
+    {
+      "id": "other-entity-004",
+      "category": "other_entity",
+      "question": "Compare Copper Kettle and Blue Bottle using Amazon reviews.",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "A mixed cross-entity, cross-platform comparison cannot be answered by the active target's Google Maps reviews.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["google maps", "copper kettle", "active reviews"],
+          ["amazon", "blue bottle", "other business", "other platform"]
+        ],
+        "forbiddenSubstrings": [
+          "amazon reviewers prefer",
+          "blue bottle customers say",
+          "amazon rating is"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I cannot compare the businesses using Amazon reviews; I only have supplied Google Maps reviews for Copper Kettle.",
+      "sampleFailingResponse": "Amazon reviewers prefer Blue Bottle and its Amazon rating is 4.8 stars."
+    },
+    {
+      "id": "other-entity-005",
+      "category": "other_entity",
+      "question": "Given that one reviewer preferred Copper Kettle's espresso to Starbucks, which café is objectively better overall?",
+      "expectedOutcome": "out_of_scope_refusal",
+      "rationale": "A reviewer's explicit preference is not evidence of an objective overall winner or of the competitor's customer reviews.",
+      "criteria": {
+        "requiredConceptGroups": [
+          ["copper kettle", "supplied reviews", "reviewer"],
+          ["overall", "compare", "only", "other café"]
+        ],
+        "forbiddenSubstrings": [
+          "copper kettle is objectively better",
+          "starbucks is objectively better",
+          "starbucks customers prefer"
+        ],
+        "requireLimitationAcknowledgement": false,
+        "requireScopeRefusal": true
+      },
+      "samplePassingResponse": "I cannot compare which café is better overall from the supplied Copper Kettle reviews; one reviewer's preference does not establish an overall comparison.",
+      "sampleFailingResponse": "Copper Kettle is objectively better overall because Starbucks customers prefer it."
     },
     {
       "id": "other-platform-001",

@@ -185,6 +185,134 @@ describe('Q&A orchestration (deterministic harness)', () => {
     },
   );
 
+  // The fixture covers named and unnamed competitors, overall comparisons,
+  // other review platforms, and mixed requests. These are controlled model
+  // responses: the request assertions verify the boundary, while the evaluator
+  // checks the refusal text. Neither assertion proves Gemini will choose it.
+  it.each(
+    evaluationSet.cases.filter(
+      (testCase) => testCase.category === 'other_entity' || testCase.category === 'other_platform',
+    ),
+  )(
+    'refuses unsupported entity or platform requests using active reviews for $id',
+    async (testCase) => {
+      const { fake, service, findByTarget } = setup(evaluationReviews);
+      fake.respondWith({ outcome: 'out_of_scope_refusal', answer: testCase.samplePassingResponse });
+
+      const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+      const request = fake.lastRequest();
+
+      expect(findByTarget).toHaveBeenCalledWith(OWNER, TARGET_ID);
+      expect(request.systemPrompt).toBe(buildSystemPrompt(request.target));
+      expect(request.systemPrompt).toContain('another entity or states a comparison');
+      expect(request.systemPrompt).toContain('refuse the unsupported comparison');
+      expect(request.target).toEqual({ name: evaluationSet.target.name, platform: 'GOOGLE_MAPS' });
+      // A competitor mention inside one of these reviews is allowed through
+      // as active-target evidence; no second target's reviews are fetched.
+      expect(request.reviews.map((row) => row.text)).toEqual(
+        evaluationSet.reviews.map((row) => row.text),
+      );
+      expect(request.availableReviewCount).toBe(evaluationSet.reviews.length);
+      expect(request.question).toBe(testCase.question);
+      expect(result).toMatchObject({
+        target: { id: TARGET_ID, name: target.name, platform: 'GOOGLE_MAPS' },
+        outcome: testCase.expectedOutcome,
+        answer: testCase.samplePassingResponse,
+        reviewCount: evaluationSet.reviews.length,
+        context: { reviewsUsed: evaluationSet.reviews.length, truncated: false },
+      });
+      expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(true);
+    },
+  );
+
+  // Positive controls prevent a blanket competitor/platform-name refusal:
+  // ordinary coffee and wait questions, an attributed preference, and a patio
+  // question containing an incidental Yelp mention must remain answerable.
+  it.each(['in-scope-002', 'in-scope-004', 'in-scope-005', 'in-scope-006', 'in-scope-007'])(
+    'keeps supported active-target questions in scope for %s',
+    async (caseId) => {
+      const testCase = evaluationCase(caseId);
+      const { fake, service } = setup(evaluationReviews);
+      fake.respondWith({ outcome: 'grounded_answer', answer: testCase.samplePassingResponse });
+
+      const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+      const request = fake.lastRequest();
+
+      expect(request.question).toBe(testCase.question);
+      expect(request.reviews.map((row) => row.text)).toEqual(
+        evaluationSet.reviews.map((row) => row.text),
+      );
+      expect(request.availableReviewCount).toBe(evaluationSet.reviews.length);
+      expect(request.systemPrompt).toContain('clearly attributing the opinion');
+      expect(request.systemPrompt).toContain('incidental name of another business or platform');
+      expect(result.outcome).toBe(testCase.expectedOutcome);
+      expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(true);
+    },
+  );
+
+  it('accepts an attributed reviewer preference but refuses an unsupported overall verdict', async () => {
+    const narrow = evaluationCase('in-scope-004');
+    const overall = evaluationCase('other-entity-005');
+    const { fake, service } = setup(evaluationReviews);
+    // Both questions receive the same active review containing the preference.
+    // The requested claim, not the mere presence of "Starbucks", determines
+    // whether the controlled response is grounded or out of scope.
+    fake.respondWith({ outcome: 'grounded_answer', answer: narrow.samplePassingResponse });
+    const attributed = await service.ask(OWNER, TARGET_ID, narrow.question);
+    fake.respondWith({ outcome: 'out_of_scope_refusal', answer: overall.samplePassingResponse });
+    const refused = await service.ask(OWNER, TARGET_ID, overall.question);
+
+    expect(fake.requests).toHaveLength(2);
+    for (const request of fake.requests) {
+      expect(request.reviews.some((row) => row.text.includes('preferred Copper Kettle'))).toBe(
+        true,
+      );
+    }
+    expect(attributed.outcome).toBe('grounded_answer');
+    expect(evaluateScopeGuardResponse(narrow, attributed.answer).acceptable).toBe(true);
+    expect(refused.outcome).toBe('out_of_scope_refusal');
+    expect(evaluateScopeGuardResponse(overall, refused.answer).acceptable).toBe(true);
+  });
+
+  it('exposes a fabricated external answer that passes response-shape validation', async () => {
+    const testCase = evaluationCase('other-platform-001');
+    const { fake, service } = setup(evaluationReviews);
+    fake.respondWith({ outcome: 'grounded_answer', answer: testCase.sampleFailingResponse });
+
+    const result = await service.ask(OWNER, TARGET_ID, testCase.question);
+
+    // The service accepts valid { outcome, answer } JSON without checking
+    // factual truth. Only the test evaluator detects the fabricated Yelp fact;
+    // that evaluator is not a runtime guard.
+    expect(result.outcome).toBe('grounded_answer');
+    expect(evaluateScopeGuardResponse(testCase, result.answer).acceptable).toBe(false);
+  });
+
+  it('does not imply that an omitted competitor mention was checked when context is trimmed', async () => {
+    // Force the review mentioning Starbucks over budget while keeping a short
+    // active-target review. The model knows two reviews exist but receives only
+    // one, so an answer must be limited to the supplied subset.
+    const omittedMention = review(
+      'omitted',
+      'I preferred Copper Kettle to Starbucks. ' + 'x'.repeat(2000),
+    );
+    const supplied = review('supplied', 'The espresso at Copper Kettle tastes good.');
+    const { fake, service } = setup([omittedMention, supplied], 110);
+    const question = 'What do the supplied reviews say about Starbucks?';
+    const answer =
+      'I cannot report a Starbucks comparison from the supplied Copper Kettle reviews.';
+    fake.respondWith({ outcome: 'out_of_scope_refusal', answer });
+
+    const result = await service.ask(OWNER, TARGET_ID, question);
+
+    expect(fake.lastRequest().reviews.map((row) => row.text)).toEqual([supplied.text]);
+    expect(fake.lastRequest().availableReviewCount).toBe(2);
+    expect(fake.lastRequest().systemPrompt).toContain('reviews that were not supplied');
+    expect(result.context).toEqual({ reviewsUsed: 1, truncated: true });
+    expect(result.answer).toContain('supplied Copper Kettle reviews');
+    expect(result.answer).not.toMatch(/all (?:saved|ingested) reviews/i);
+  });
+
   it('keeps an active restaurant review question in scope despite restaurant wording', async () => {
     const { fake, service } = setup(evaluationReviews);
     fake.respondWith({
